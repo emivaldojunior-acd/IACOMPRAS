@@ -10,6 +10,35 @@ Este projeto implementa uma camada agêntica completa para o sistema IACOMPRAS, 
 - `src/iacompras/orchestrator.py`: Pipeline que coordena a execução sequencial dos agentes.
 - `src/iacompras/app_streamlit.py`: Interface web moderna para interação com o sistema.
 
+## Arquitetura do Sistema
+
+```mermaid
+graph TD
+    User((Usuário)) -->|Interage| Streamlit[Interface Streamlit]
+    Streamlit -->|Solicita Planejamento| Orchestrator[Orquestrador IACompras]
+    
+    subgraph "Camada Agêntica (IA & Automação)"
+        Orchestrator --> Ag1[Agente Planejador]
+        Ag1 --> Ag2[Agente Negociador]
+        Ag2 --> Ag3[Agente de Orçamento]
+        Ag3 --> Ag4[Agente Financeiro]
+        Ag4 --> Ag5[Agente Auditor]
+        Ag5 --> Ag6[Agente Logístico]
+        
+        Ag6 --> Gemini[Consolidação Gemini 2.5-flash]
+    end
+    
+    subgraph "Camada de Dados"
+        Orchestrator -.-> DB[(SQLite iacompras.db)]
+        Ag1 -.-> DB
+        Ag3 -.-> DB
+        Ag2 -.-> API[BrasilAPI / APIs Externas]
+    end
+
+    Gemini -->|Insight Inteligente| Streamlit
+    Orchestrator -->|Resultado Final| Streamlit
+```
+
 ## Configuração
 
 1. Instale as dependências:

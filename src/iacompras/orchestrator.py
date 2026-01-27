@@ -1,12 +1,12 @@
 import sqlite3
 import json
 from iacompras.tools.db_tools import db_init, db_insert_run, DB_PATH
-from iacompras.agents.agente_01 import AgentePlanejadorCompras
-from iacompras.agents.agente_02 import AgenteNegociadorFornecedores
-from iacompras.agents.agente_03 import AgenteGerenciadorOrcamento
-from iacompras.agents.agente_04 import AgenteFinanceiro
-from iacompras.agents.agente_05 import AgenteAuditor
-from iacompras.agents.agente_06 import AgenteLogistico
+from iacompras.agents.agente_planejador import AgentePlanejadorCompras
+from iacompras.agents.agente_negociador import AgenteNegociadorFornecedores
+from iacompras.agents.agente_orcamento import AgenteGerenciadorOrcamento
+from iacompras.agents.agente_financeiro import AgenteFinanceiro
+from iacompras.agents.agente_auditor import AgenteAuditor
+from iacompras.agents.agente_logistico import AgenteLogistico
 from iacompras.tools.gemini_client import gemini_client
 
 class OrquestradorIACompras:
@@ -16,12 +16,12 @@ class OrquestradorIACompras:
     """
     def __init__(self, api_key=None):
         db_init() # Garante que o banco existe
-        self.agente_01 = AgentePlanejadorCompras()
-        self.agente_02 = AgenteNegociadorFornecedores()
-        self.agente_03 = AgenteGerenciadorOrcamento()
-        self.agente_04 = AgenteFinanceiro()
-        self.agente_05 = AgenteAuditor()
-        self.agente_06 = AgenteLogistico()
+        self.planejador = AgentePlanejadorCompras()
+        self.negociador = AgenteNegociadorFornecedores()
+        self.gerenciador_orcamento = AgenteGerenciadorOrcamento()
+        self.financeiro = AgenteFinanceiro()
+        self.auditor = AgenteAuditor()
+        self.logistico = AgenteLogistico()
 
         if api_key:
             gemini_client.configure(api_key)
@@ -34,27 +34,27 @@ class OrquestradorIACompras:
         
         # 1. Planejamento (ML)
         print("[1] Executando Agente Planejador...")
-        recomendacoes = self.agente_01.executar()
+        recomendacoes = self.planejador.executar()
         
         # 2. Negociação (BrasilAPI)
         print("[2] Executando Agente Negociador...")
-        fornecimentos = self.agente_02.executar(recomendacoes)
+        fornecimentos = self.negociador.executar(recomendacoes)
         
         # 3. Orçamento (Cotações & Email)
         print("[3] Executando Agente de Orçamento...")
-        cotacoes = self.agente_03.executar(run_id, fornecimentos)
+        cotacoes = self.gerenciador_orcamento.executar(run_id, fornecimentos)
         
         # 4. Financeiro
         print("[4] Executando Agente Financeiro...")
-        analise_financeira = self.agente_04.executar(cotacoes)
+        analise_financeira = self.financeiro.executar(cotacoes)
         
         # 5. Auditoria
         print("[5] Executando Agente Auditor...")
-        auditoria = self.agente_05.executar(analise_financeira)
+        auditoria = self.auditor.executar(analise_financeira)
         
         # 6. Logística
         print("[6] Executando Agente Logístico...")
-        resultado_final = self.agente_06.executar(auditoria)
+        resultado_final = self.logistico.executar(auditoria)
         
         # Salvar run_items no banco
         self._save_run_items(run_id, resultado_final)
