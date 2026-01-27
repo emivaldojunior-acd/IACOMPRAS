@@ -3,56 +3,35 @@ import os
 from pathlib import Path
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import GradientBoostingRegressor
-from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import mean_absolute_error, r2_score
 
 def load_dataset():
     """
-    Carrega o dataset_modelo.csv de forma robusta procurando no workspace.
+    Carrega o dataset_modelo.csv do diretório data/samples/.
     """
-    filename = "dataset_modelo.csv"
+    path = Path("data/samples/dataset_modelo.csv")
     
-    # 1. Tentar variáveis de ambiente
-    for env_var in ["WORKSPACE_MODELO", "ANTIGRAVITY_WORKSPACE", "GOOGLE_WORKSPACE"]:
-        env_path = os.getenv(env_var)
-        if env_path:
-            path = Path(env_path) / filename
-            if path.exists():
-                return pd.read_csv(path)
-
-    # 2. Procurar em subpastas conhecidas a partir do CWD
-    cwd = Path.cwd()
-    possible_paths = [
-        cwd / "WORKSPACE_MODELO" / filename,
-        cwd / "workspace_modelo" / filename,
-        cwd / filename
-    ]
-    for path in possible_paths:
-        if path.exists():
-            return pd.read_csv(path)
-
-    # 3. Busca recursiva limitada (profundidade 3)
-    for path in cwd.rglob(filename):
-        if len(path.relative_to(cwd).parts) <= 3:
-            return pd.read_csv(path)
-
-    error_msg = f"Erro: Arquivo {filename} não encontrado. Procurado em: {cwd} e variáveis de ambiente."
-    raise FileNotFoundError(error_msg)
+    # Se não encontrar no CWD (provavelmente a raiz), tenta relativo ao arquivo
+    if not path.exists():
+        # d:/IACOMPRAS/src/iacompras/ml/IACOMPRAS.GradientBoostingRegressor.py -> 3 níveis acima é src, 4 níveis é a raiz
+        path = Path(__file__).resolve().parents[3] / "data" / "samples" / "dataset_modelo.csv"
+        
+    if path.exists():
+        return pd.read_csv(path)
+    
+    raise FileNotFoundError(f"Arquivo não encontrado: {path}")
 
 def train_and_evaluate(df):
     """
-    Treina o modelo GradientBoostingRegressor e gera as previsões.
+    Treina o modelo GradientBoostingRegressor e gera as previsões para 2026 de forma correta.
     """
-    features = [
-        'GIRO_MEDIO_DIAS',
-        'GIRO_MEDIO_MESES',
-        'TENDENCIA_PERC',
-        '2023',
-        '2024',
-        '2025'
-    ]
+    # 1. Definição de Features para Treino (Prever 2025 usando 2023 e 2024)
+    features_base = ['GIRO_MEDIO_DIAS', 'GIRO_MEDIO_MESES', 'TENDENCIA_PERC']
+    features_train = features_base + ['2023', '2024']
+    target = '2025'
     
-    X = df[features]
-    y = df['2025']
+    X = df[features_train]
+    y = df[target]
     
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
@@ -63,16 +42,27 @@ def train_and_evaluate(df):
     
     modelo.fit(X_train, y_train)
     
-    # Avaliação
+    # Avaliação (no conjunto de teste de 2025)
     y_pred = modelo.predict(X_test)
     erro = mean_absolute_error(y_test, y_pred)
-    print(f'Erro médio absoluto (MAE): {erro:.2f}')
+    r2 = r2_score(y_test, y_pred)
     
-    # Previsões para 2026
-    df['PREVISAO_2026_MENSAL'] = modelo.predict(X)
+    print(f'Erro médio absoluto (MAE) no Teste: {erro:.2f}')
+    print(f'Percentual de Variância Explicada (R²): {r2:.2%}')
+    
+    # 2. Previsões para 2026 (Usando 2024 e 2025 como entrada)
+    # Criamos um conjunto de dados "deslocado" para que o modelo projete o futuro
+    X_2026 = df[features_base].copy()
+    X_2026['2023'] = df['2024'] 
+    X_2026['2024'] = df['2025'] 
+    
+    # Garantir a ordem das colunas igual ao treino
+    X_2026 = X_2026[features_train]
+    
+    df['PREVISAO_2026_MENSAL'] = modelo.predict(X_2026)
     df['PREVISAO_2026_ANUAL'] = (df['PREVISAO_2026_MENSAL'] * 12).round(0)
     
-    print("\nPrevisões para 2026 (Primeiras linhas):")
+    print("\nPrevisões REAIS para 2026 (Sem Data Leakage):")
     print(df[
         [
             'CODIGO_PRODUTO',
