@@ -1,6 +1,6 @@
 # IACOMPRAS - Camada Agêntica
 
-Este projeto implementa uma camada agêntica completa para o sistema IACOMPRAS, utilizando **Google ADK** (simulado em Python) e o modelo **Gemini 2.0 Flash** como orquestrador.
+Este projeto implementa uma camada agêntica completa para o sistema IACOMPRAS, utilizando **Google ADK** (simulado em Python) e o modelo **Gemini 2.5-flash** como orquestrador.
 
 ## Estrutura do Projeto
 
@@ -19,7 +19,7 @@ Este projeto implementa uma camada agêntica completa para o sistema IACOMPRAS, 
    *(Dependências recomendadas: pandas, openpyxl, scikit-learn, streamlit, requests, sqlite3)*
 
 2. Configure as variáveis de ambiente:
-   - `GEMINI_API_KEY`: Sua chave de API do Google Gemini.
+   - `GEMINI_API_KEY`: Sua chave de API do Google Gemini (Pode ser informada diretamente na interface Streamlit).
    - `SENDGRID_API_KEY`: Opcional (Modo Dry-Run ativo por padrão).
 
 ## Como Rodar
@@ -31,7 +31,7 @@ streamlit run src/iacompras/app_streamlit.py
 
 ## Fluxo de Agentes
 
-- **Orquestrador Gemini 2.0**: Utiliza o modelo `gemini-2.0-flash` para analisar os dados gerados por todos os agentes e criar um sumário executivo inteligente.
+- **Orquestrador Gemini 2.5**: Utiliza o modelo `gemini-2.5-flash` para analisar os dados gerados por todos os agentes e criar um sumário executivo inteligente.
 2. **Agente Negociador**: Seleciona fornecedores e consulta BrasilAPI para validar CNPJs.
 3. **Agente Gerenciador de Orçamento**: Registra cotações no SQLite e simula envio de e-mails via SendGrid.
 4. **Agente Financeiro**: Calcula custos totais e projeções de pagamento.

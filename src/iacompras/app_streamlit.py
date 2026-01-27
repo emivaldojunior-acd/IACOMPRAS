@@ -19,12 +19,16 @@ st.markdown("Automação de planejamento, negociação e auditoria via Google AD
 
 with st.sidebar:
     st.header("Configurações")
+    gemini_api_key = st.text_input("Gemini API Key", type="password", help="Insira sua chave do Google Gemini (necessária para os sumários)")
     orcamento_max = st.number_input("Orçamento Máximo (R$)", value=50000.0, step=1000.0)
     mes_referencia = st.selectbox("Mês de Referência", ["Próximo Mês", "Março 2026", "Abril 2026"])
     
     if st.button("🚀 Executar Orquestração", type="primary"):
+        if not gemini_api_key and not os.getenv("GEMINI_API_KEY"):
+            st.warning("⚠️ Por favor, informe a Gemini API Key na barra lateral para obter o sumário inteligente.")
+        
         with st.spinner("Agentes trabalhando..."):
-            orc = OrquestradorIACompras()
+            orc = OrquestradorIACompras(api_key=gemini_api_key)
             resultado = orc.planejar_compras(f"Planejar compras para {mes_referencia} com orçamento de {orcamento_max}")
             st.session_state['last_run'] = resultado
             st.success("Orquestração concluída!")
@@ -38,7 +42,7 @@ if 'last_run' in st.session_state:
     col3.metric("Status", "Finalizado")
 
     if res.get('insight_gemini'):
-        st.subheader("🤖 Sumário Inteligente (Gemini 2.5)")
+        st.subheader("🤖 Sumário Inteligente (Gemini 2.5-flash)")
         st.info(res['insight_gemini'])
 
     st.subheader("📋 Recomendações dos Agentes")

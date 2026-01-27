@@ -12,9 +12,9 @@ from iacompras.tools.gemini_client import gemini_client
 class OrquestradorIACompras:
     """
     Orquestrador ADK (Simulado) que executa o pipeline dos 6 agentes.
-    Utiliza Gemini 2.0 para consolidar a inteligência final.
+    Utiliza Gemini 2.5-flash para consolidar a inteligência final.
     """
-    def __init__(self):
+    def __init__(self, api_key=None):
         db_init() # Garante que o banco existe
         self.agente_01 = AgentePlanejadorCompras()
         self.agente_02 = AgenteNegociadorFornecedores()
@@ -22,6 +22,9 @@ class OrquestradorIACompras:
         self.agente_04 = AgenteFinanceiro()
         self.agente_05 = AgenteAuditor()
         self.agente_06 = AgenteLogistico()
+
+        if api_key:
+            gemini_client.configure(api_key)
 
     def planejar_compras(self, query):
         print(f"[*] Iniciando orquestração para: {query}")
@@ -56,8 +59,8 @@ class OrquestradorIACompras:
         # Salvar run_items no banco
         self._save_run_items(run_id, resultado_final)
         
-        # 7. Consolidação com Gemini 2.0
-        print("[7] Gemini 2.0 consolidando resposta final...")
+        # 7. Consolidação com Gemini 2.5-flash
+        print("[7] Gemini 2.5-flash consolidando resposta final...")
         resumo_prompt = f"""
         Você é o orquestrador sênior do sistema IACOMPRAS. 
         O planejamento de compras para a seguinte solicitação foi concluído: '{query}'
@@ -113,6 +116,6 @@ class OrquestradorIACompras:
 if __name__ == "__main__":
     orc = OrquestradorIACompras()
     res = orc.planejar_compras("Planejar compras para o próximo mês")
-    print("\n[V] Orquestração concluída com Gemini 2.0!")
+    print("\n[V] Orquestração concluída com Gemini 2.5-flash!")
     print(f"Run ID: {res['run_id']}")
     print(f"Insight: {res['insight_gemini']}")
