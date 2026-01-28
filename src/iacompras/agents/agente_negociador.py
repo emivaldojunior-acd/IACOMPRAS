@@ -1,26 +1,21 @@
+from google.adk.agents import Agent
 from iacompras.tools.external_tools import brasilapi_cnpj_lookup
 from iacompras.tools.data_tools import get_supplier_history
 from iacompras.tools.analysis_tools import score_supplier
+from iacompras.tools.ml_tools import train_supplier_classifier
 
-class AgenteNegociadorFornecedores:
+class AgenteNegociadorFornecedores(Agent):
     """
     Agente responsável por selecionar fornecedores e validar dados via BrasilAPI.
     """
-    def __init__(self):
-        self.name = "Negociador de Fornecedores"
+    name: str = "Agente_Negociador"
+    description: str = "Seleciona fornecedores e valida dados cadastrais."
+    instruction: str = "Você deve selecionar os melhores fornecedores para cada produto e validar seus dados via BrasilAPI."
 
-    def executar(self, recomendacoes_compras):
+    def negociar_fornecedores(self, recomendacoes_compras: list) -> list:
+        """Selecionar fornecedores e validar dados cadastrais."""
         fornecimentos = []
         for item in recomendacoes_compras:
-            cod_produto = item['codigo_produto']
-            
-            # Busca fornecedores que já venderam este produto
-            # (Simplificado: pegamos do histórico geral de notas que contenham o produto)
-            # Para este MVP, vamos pegar um fornecedor exemplo baseado no histórico
-            history = get_supplier_history("") # Pega tudo
-            # Filtro simulado para encontrar quem vende o produto X
-            # (Na vida real, faria merge com NF_ITEMS)
-            
             # Simulando seleção de fornecedor do dataset
             exemplo_fornecedor = {
                 "nome": "FORNECEDOR EXEMPLO LTDA",
@@ -47,3 +42,7 @@ class AgenteNegociadorFornecedores:
             })
             
         return fornecimentos
+
+    def executar(self, recomendacoes_compras):
+        # Wrapper temporário para compatibilidade
+        return self.negociar_fornecedores(recomendacoes_compras)

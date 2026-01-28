@@ -1,13 +1,16 @@
+from google.adk.agents import Agent
 from iacompras.tools.analysis_tools import detect_anomalies
 
-class AgenteAuditor:
+class AgenteAuditor(Agent):
     """
     Agente responsável por detectar anomalias e inconsistências.
     """
-    def __init__(self):
-        self.name = "Auditor"
+    name: str = "Agente_Auditor"
+    description: str = "Audita transações e detecta anomalias."
+    instruction: str = "Você deve analisar os preços e quantidades para detectar anomalias ou falhas de conformidade."
 
-    def executar(self, analise_financeira):
+    def auditar_compras(self, analise_financeira: dict) -> list:
+        """Detectar anomalias e inconsistências."""
         itens = analise_financeira['itens']
         valores_unitarios = [item['valor_unitario'] for item in itens]
         
@@ -30,3 +33,7 @@ class AgenteAuditor:
             })
             
         return auditoria_final
+
+    def executar(self, analise_financeira):
+        # Wrapper temporário
+        return self.auditar_compras(analise_financeira)

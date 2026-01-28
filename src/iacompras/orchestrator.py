@@ -26,6 +26,35 @@ class OrquestradorIACompras:
         if api_key:
             gemini_client.configure(api_key)
 
+    def get_agent_descriptions(self):
+        """
+        Retorna as orientações técnicas de cada agente.
+        """
+        return {
+            "Agente_Planejador": "Previsão de demanda via Machine Learning e sugestão de volumes de compra baseada em tendências históricas.",
+            "Agente_Negociador": "Busca e validação de fornecedores (BrasilAPI), análise de score e histórico de fornecimento.",
+            "Agente_Orcamento": "Gestão de cotações, simulação de custos unitários e comunicação via e-mail com fornecedores.",
+            "Agente_Financeiro": "Cálculo de impacto financeiro total, projeção de fluxo de caixa e viabilidade orçamentária.",
+            "Agente_Auditor": "Detecção de anomalias em preços e quantidades, garantindo conformidade e segurança nas compras.",
+            "Agente_Logistico": "Análise de prazos de entrega, janelas de recebimento e avaliação de risco de ruptura de estoque."
+        }
+
+    def get_gemini_agent_options(self):
+        """
+        Usa o Gemini para gerar uma apresentação amigável das opções de agentes disponíveis.
+        """
+        descricoes = self.get_agent_descriptions()
+        prompt = f"""
+        Você é o Orquestrador IACOMPRAS (Gemini 2.5-flash). 
+        Apresente ao usuário os agentes disponíveis no sistema e o que cada um faz, de forma profissional e convidativa.
+        
+        Agentes:
+        {json.dumps(descricoes, indent=2, ensure_ascii=False)}
+        
+        Formate como uma lista clara e técnica. Diga que estou pronto para orquestrar qualquer uma dessas especialidades.
+        """
+        return gemini_client.generate_text(prompt)
+
     def planejar_compras(self, query):
         print(f"[*] Iniciando orquestração para: {query}")
         
@@ -61,17 +90,21 @@ class OrquestradorIACompras:
         
         # 7. Consolidação com Gemini 2.5-flash
         print("[7] Gemini 2.5-flash consolidando resposta final...")
+        agent_info = self.get_agent_descriptions()
         resumo_prompt = f"""
-        Você é o orquestrador sênior do sistema IACOMPRAS. 
+        Você é o orquestrador sênior do sistema IACOMPRAS (Gemini 2.5-flash). 
         O planejamento de compras para a seguinte solicitação foi concluído: '{query}'
         
+        Contexto dos Agentes que participaram:
+        {json.dumps(agent_info, indent=2, ensure_ascii=False)}
+
         Total estimado das compras: R$ {analise_financeira['total_geral']:.2f}
         Número de produtos analisados: {len(resultado_final)}
         
         Dados de amostra dos agentes:
         {json.dumps(resultado_final[:3], indent=2)}
         
-        Com base nestes dados, gere um sumário executivo profissional destacando:
+        Com base nestes dados e no papel de cada agente, gere um sumário executivo profissional destacando:
         1. Resumo financeiro.
         2. Principais fornecedores envolvidos.
         3. Alertas de auditoria ou riscos logísticos relevantes.

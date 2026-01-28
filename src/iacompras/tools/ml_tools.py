@@ -8,17 +8,30 @@ sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 try:
     from iacompras.ml.IACOMPRAS_GradientBoostingRegressor import load_dataset, train_and_evaluate
+    from iacompras.ml.treinar_classificador_fornecedor import treinar_modelo_avaliacao_fornecedores
 except ImportError:
     # Caso o import direto falhe por causa do nome do arquivo com pontos
     import importlib.util
+    ml_dir = Path(__file__).resolve().parents[1] / "ml"
+    
+    # Load GradientBoostingRegressor
     spec = importlib.util.spec_from_file_location(
         "model_ml", 
-        str(Path(__file__).resolve().parents[1] / "ml" / "IACOMPRAS.GradientBoostingRegressor.py")
+        str(ml_dir / "IACOMPRAS.GradientBoostingRegressor.py")
     )
     model_ml = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(model_ml)
     load_dataset = model_ml.load_dataset
     train_and_evaluate = model_ml.train_and_evaluate
+
+    # Load treinar_classificador_fornecedor
+    spec_supp = importlib.util.spec_from_file_location(
+        "supp_ml",
+        str(ml_dir / "treinar_classificador_fornecedor.py")
+    )
+    supp_ml = importlib.util.module_from_spec(spec_supp)
+    spec_supp.loader.exec_module(supp_ml)
+    treinar_modelo_avaliacao_fornecedores = supp_ml.treinar_modelo_avaliacao_fornecedores
 
 def predict_demand(codigo_produto, reference_month=None):
     """
@@ -40,3 +53,10 @@ def predict_demand(codigo_produto, reference_month=None):
         "previsao_mensal": float(product_row['PREVISAO_2026_MENSAL'].values[0]),
         "previsao_anual": float(product_row['PREVISAO_2026_ANUAL'].values[0])
     }
+
+def train_supplier_classifier():
+    """
+    Executa o script de treinamento do classificador de fornecedores.
+    """
+    treinar_modelo_avaliacao_fornecedores()
+    return {"status": "success", "message": "Modelo de classificação de fornecedores treinado com sucesso."}

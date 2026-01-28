@@ -1,11 +1,15 @@
-class AgenteFinanceiro:
+from google.adk.agents import Agent
+
+class AgenteFinanceiro(Agent):
     """
     Agente responsável por estimar o impacto financeiro.
     """
-    def __init__(self):
-        self.name = "Financeiro"
+    name: str = "Agente_Financeiro"
+    description: str = "Analisa impacto financeiro e fluxo de caixa."
+    instruction: str = "Você deve calcular o custo total estimado e sugerir projeções de fluxo de caixa."
 
-    def executar(self, cotacoes):
+    def analisar_financeiro(self, cotacoes: list) -> dict:
+        """Estimar o impacto financeiro."""
         analise_financeira = []
         total_geral = 0
         
@@ -24,3 +28,7 @@ class AgenteFinanceiro:
             "total_geral": total_geral,
             "resumo_caixa": f"Impacto total de R$ {total_geral:.2f} no próximo mês."
         }
+
+    def executar(self, cotacoes):
+        # Wrapper temporário
+        return self.analisar_financeiro(cotacoes)

@@ -5,3 +5,4 @@ openpyxl
 requests
 numpy
 scikit-learn
+google-adk
