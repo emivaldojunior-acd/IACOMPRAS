@@ -23,6 +23,10 @@ class AgenteLogistico(Agent):
             
         return plano_logistico
 
-    def executar(self, auditoria_final):
-        # Wrapper temporário
+    def executar(self, auditoria_final=None, query=None):
+        # Se não houver auditoria, o logístico não deve rodar
+        if not auditoria_final:
+            print("[!] Agente Logístico: Nenhuma auditoria recebida.")
+            return {"status": "error", "message": "Auditoria ausente. Execute o Agente Auditor primeiro."}
+            
         return self.planejar_logistica(auditoria_final)

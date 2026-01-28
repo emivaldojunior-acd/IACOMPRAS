@@ -60,3 +60,19 @@ def train_supplier_classifier():
     """
     treinar_modelo_avaliacao_fornecedores()
     return {"status": "success", "message": "Modelo de classificação de fornecedores treinado com sucesso."}
+
+def get_classified_suppliers():
+    """
+    Lê o arquivo de fornecedores classificados e retorna como lista de dicionários.
+    """
+    # parents[2] points to src/iacompras/tools -> src/iacompras -> src
+    # parents[3] points to d:/IACOMPRAS
+    BASE_DIR = Path(__file__).resolve().parents[3]
+    CSV_PATH = BASE_DIR / "models" / "fornecedores_classificados.csv"
+    
+    if not CSV_PATH.exists():
+        return {"error": "Arquivo de fornecedores classificados não encontrado. É necessário treinar o modelo primeiro."}
+    
+    df = pd.read_csv(CSV_PATH)
+    # Converte o DataFrame para uma lista de dicionários para ser consumida pelo agente/UI
+    return df.to_dict(orient='records')

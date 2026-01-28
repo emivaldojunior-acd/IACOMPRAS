@@ -43,6 +43,10 @@ class AgenteGerenciadorOrcamento(Agent):
             
         return status_cotacoes
 
-    def executar(self, run_id, fornecimentos):
-        # Wrapper temporário
+    def executar(self, run_id, fornecimentos=None, query=None):
+        # Se não houver fornecimentos, o gestor de orçamento não deve rodar
+        if not fornecimentos:
+            print("[!] Agente Orçamento: Nenhum dado de fornecedor recebido.")
+            return {"status": "error", "message": "Nenhum fornecedor selecionado. Execute o Agente Negociador primeiro."}
+            
         return self.gerenciar_orcamento(run_id, fornecimentos)

@@ -29,6 +29,10 @@ class AgenteFinanceiro(Agent):
             "resumo_caixa": f"Impacto total de R$ {total_geral:.2f} no próximo mês."
         }
 
-    def executar(self, cotacoes):
-        # Wrapper temporário
+    def executar(self, cotacoes=None, query=None):
+        # Se não houver cotações, o financeiro não deve rodar
+        if not cotacoes:
+            print("[!] Agente Financeiro: Nenhuma cotação recebida para análise.")
+            return {"status": "error", "message": "Nenhuma cotação disponível. Execute o Agente de Orçamento primeiro."}
+            
         return self.analisar_financeiro(cotacoes)

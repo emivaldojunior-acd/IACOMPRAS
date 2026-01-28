@@ -34,6 +34,10 @@ class AgenteAuditor(Agent):
             
         return auditoria_final
 
-    def executar(self, analise_financeira):
-        # Wrapper temporário
+    def executar(self, analise_financeira=None, query=None):
+        # Se não houver análise financeira, o auditor não deve rodar
+        if not analise_financeira or (isinstance(analise_financeira, dict) and analise_financeira.get('total_geral', 0) == 0):
+            print("[!] Agente Auditor: Nenhuma análise financeira recebida.")
+            return {"status": "error", "message": "Análise financeira ausente. Execute o Agente Financeiro primeiro."}
+            
         return self.auditar_compras(analise_financeira)
