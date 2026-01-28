@@ -43,6 +43,41 @@ class AgenteNegociadorFornecedores(Agent):
             
         return fornecimentos
 
-    def executar(self, recomendacoes_compras):
-        # Wrapper temporário para compatibilidade
-        return self.negociar_fornecedores(recomendacoes_compras)
+    def atualizar_inteligencia(self):
+        """Treina o classificador de fornecedores para atualizar scores e ratings."""
+        print("[*] Agente Negociador atualizando inteligência de fornecedores...")
+        return train_supplier_classifier()
+
+    def listar_fornecedores(self):
+        """Retorna a lista de fornecedores classificados (com auto-treino se necessário)."""
+        print("[*] Agente Negociador recuperando lista de fornecedores classificados...")
+        from iacompras.tools.ml_tools import get_classified_suppliers
+        
+        resultado = get_classified_suppliers()
+        
+        # Se o arquivo não existir, treina automaticamente e tenta novamente
+        if isinstance(resultado, dict) and "error" in resultado:
+            print("[!] Arquivo de inteligência não encontrado. Iniciando treinamento automático...")
+            self.atualizar_inteligencia()
+            resultado = get_classified_suppliers()
+            
+        return resultado
+
+    def executar(self, recomendacoes_compras=None, query=None):
+        """
+        O Agente Negociador agora atua como especialista em inteligência de fornecedores.
+        Ele pode atualizar a base de conhecimento (treinar) ou listar o ranking atual.
+        """
+        # 1. Se o objetivo for treinar/atualizar o modelo
+        if query and any(k in query.lower() for k in ["treinar", "atualizar", "processar"]):
+            return self.atualizar_inteligencia()
+        
+        # 2. Se houver recomendações de compras (vindo do Planejador ou Orquestrador), realiza o enriquecimento
+        if recomendacoes_compras and isinstance(recomendacoes_compras, list):
+            print("[*] Agente Negociador: Enriquecendo recomendações com dados de fornecedores...")
+            return self.negociar_fornecedores(recomendacoes_compras)
+
+        # 3. Padrão: Fornecer o resultado de todos os fornecedores classificados (Standalone)
+        # Este é o comportamento solicitado: gerar a lista com todos classificados.
+        print("[*] Agente Negociador: Gerando lista de todos os fornecedores classificados.")
+        return self.listar_fornecedores()
