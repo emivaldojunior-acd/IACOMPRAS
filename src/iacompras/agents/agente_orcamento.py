@@ -1,17 +1,20 @@
+from google.adk.agents import Agent
 from iacompras.tools.db_tools import db_insert_cotacao
 from iacompras.tools.external_tools import sendgrid_send_email_dry_run
 
-class AgenteGerenciadorOrcamento:
+class AgenteGerenciadorOrcamento(Agent):
     """
     Agente responsável por simular cotações e registrar no banco.
     """
-    def __init__(self):
-        self.name = "Gerenciador de Orçamento"
+    name: str = "Agente_Orcamento"
+    description: str = "Gere cotações e comunica-se com fornecedores."
+    instruction: str = "Você deve gerar cotações para os produtos selecionados e simular o envio de e-mails para os fornecedores."
 
-    def executar(self, run_id, fornecimentos):
+    def gerenciar_orcamento(self, run_id: int, fornecimentos: list) -> list:
+        """Simular cotações e registrar no banco."""
         status_cotacoes = []
         for item in fornecimentos:
-            # Simula um valor unitário (pode vir do histórico no futuro)
+            # Simula um valor unitário
             valor_simulado = 100.0 
             
             # Registra cotação no SQLite
@@ -39,3 +42,7 @@ class AgenteGerenciadorOrcamento:
             })
             
         return status_cotacoes
+
+    def executar(self, run_id, fornecimentos):
+        # Wrapper temporário
+        return self.gerenciar_orcamento(run_id, fornecimentos)
