@@ -33,6 +33,8 @@ except ImportError:
     spec_supp.loader.exec_module(supp_ml)
     treinar_modelo_avaliacao_fornecedores = supp_ml.treinar_modelo_avaliacao_fornecedores
 
+from iacompras.tools.db_tools import db_get_latest_classified_suppliers
+
 def predict_demand(codigo_produto, reference_month=None):
     """
     Chama o modelo já treinado para prever a demanda.
@@ -63,16 +65,11 @@ def train_supplier_classifier():
 
 def get_classified_suppliers():
     """
-    Lê o arquivo de fornecedores classificados e retorna como lista de dicionários.
+    Lê os fornecedores classificados do banco de dados SQLite e retorna como lista de dicionários.
     """
-    # parents[2] points to src/iacompras/tools -> src/iacompras -> src
-    # parents[3] points to d:/IACOMPRAS
-    BASE_DIR = Path(__file__).resolve().parents[3]
-    CSV_PATH = BASE_DIR / "models" / "fornecedores_classificados.csv"
+    suppliers = db_get_latest_classified_suppliers()
     
-    if not CSV_PATH.exists():
-        return {"error": "Arquivo de fornecedores classificados não encontrado. É necessário treinar o modelo primeiro."}
+    if not suppliers:
+        return {"error": "Nenhum fornecedor classificado encontrado no banco de dados. É necessário treinar o modelo primeiro."}
     
-    df = pd.read_csv(CSV_PATH)
-    # Converte o DataFrame para uma lista de dicionários para ser consumida pelo agente/UI
-    return df.to_dict(orient='records')
+    return suppliers

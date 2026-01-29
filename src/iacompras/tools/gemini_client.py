@@ -42,7 +42,10 @@ class GeminiClient:
                 return response.text
             return "Erro: O Gemini não retornou conteúdo válido."
         except Exception as e:
-            return f"Erro ao consultar o Gemini: {str(e)}"
+            err_msg = str(e)
+            if "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg:
+                return "⚠️ Cota do Gemini excedida (Tier Gratuito). Tente novamente em alguns segundos."
+            return f"Erro ao consultar o Gemini: {err_msg}"
 
 # Instância global configurável
 gemini_client = GeminiClient()

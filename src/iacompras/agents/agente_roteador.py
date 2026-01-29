@@ -82,8 +82,9 @@ class AgenteRoteador:
         resposta_texto = gemini_client.generate_text(prompt)
         
         # Se a resposta for uma mensagem de erro vinda do cliente (Ex: Quota Excedida)
-        if resposta_texto.startswith("Erro"):
-            print(f"[!] Erro Gemini detectado: {resposta_texto}. Ativando roteamento local...")
+        # Verificamos por "Erro" ou pelo emoji "⚠️" que usamos para mensagens amigáveis
+        if resposta_texto.startswith("Erro") or "⚠️" in resposta_texto:
+            print(f"[!] Problema no Gemini detectado: {resposta_texto}. Ativando roteamento local...")
             return self._roteamento_local(mensagem_usuario)
 
         try:

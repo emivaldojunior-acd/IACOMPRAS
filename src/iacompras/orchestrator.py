@@ -156,13 +156,18 @@ class OrquestradorIACompras:
             Cadeia executada: {', '.join(chain_to_run)}
             
             Total estimado: R$ {analise_financeira.get('total_geral', 0):.2f}
-            Itens processados: {len(resultado_final)}
+            Itens processados: {len(resultado_final) if isinstance(resultado_final, list) else 1}
             
-            Dados: {json.dumps(resultado_final[:3], indent=2)}
+            Dados: {json.dumps(resultado_final[:3] if isinstance(resultado_final, list) else resultado_final, indent=2)}
             
             Gere um sumário executivo curto.
             """
-            insight_gemini = gemini_client.generate_text(resumo_prompt)
+            try:
+                insight_gemini = gemini_client.generate_text(resumo_prompt)
+                # Se o gemini_client retornar uma string de erro (que agora são amigáveis), o orchestrator apenas aceita.
+            except Exception as e:
+                print(f"[!] Erro fatal no orquestrador ao chamar Gemini: {e}")
+                insight_gemini = "⚠️ Erro inesperado ao gerar insight."
         
         # Finalizar Run
         conn = sqlite3.connect(DB_PATH)

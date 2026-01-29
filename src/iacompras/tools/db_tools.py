@@ -132,3 +132,35 @@ def db_list_cotacoes(run_id, codigo_produto=None):
     results = [dict(zip(columns, row)) for row in cursor.fetchall()]
     conn.close()
     return results
+
+def db_get_latest_classified_suppliers():
+    """
+    Recupera a última execução do classificador de fornecedores do banco de dados.
+    """
+    if not os.path.exists(DB_PATH):
+        return []
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # Verifica se a tabela existe
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='fornecedores_classificados'")
+    if not cursor.fetchone():
+        conn.close()
+        return []
+
+    # Busca a data da última execução
+    cursor.execute("SELECT MAX(dt_execucao) FROM fornecedores_classificados")
+    last_exec = cursor.fetchone()[0]
+    
+    if not last_exec:
+        conn.close()
+        return []
+        
+    # Busca todos os registros dessa última execução
+    cursor.execute("SELECT * FROM fornecedores_classificados WHERE dt_execucao = ?", (last_exec,))
+    
+    columns = [column[0] for column in cursor.description]
+    results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+    conn.close()
+    return results
