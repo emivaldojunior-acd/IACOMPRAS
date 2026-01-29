@@ -32,21 +32,10 @@ def rating_to_label(rating: int) -> str:
         return "Ótimo / Recomendado"
 
 
-def treinar_modelo_avaliacao_fornecedores():
-    base_path = DATA_DIR
-    nf_path = base_path / "IACOMPRAS_NOTASFISCAL_2023_24_25.xlsx"
-    items_path = base_path / "IACOMPRAS_NOTASFSICALSITENS_2023_24_25.xlsx"
-
-    print(f"Carregando dados de: {base_path}")
-    if not nf_path.exists() or not items_path.exists():
-        print("Erro: Arquivos de dados não encontrados em data/samples/")
-        return
-
-    df_nf = pd.read_excel(nf_path)
-    df_items = pd.read_excel(items_path)
-
-    print("Criando features por fornecedor...")
-
+def engenharia_features_fornecedores(df_nf, df_items):
+    """
+    Realiza a engenharia de features para os fornecedores com base nas notas fiscais e itens.
+    """
     supplier_features = df_nf.groupby('RAZAO_FORNECEDOR').agg({
         'PRAZO_ENTREGA_DIAS': ['mean', 'std'],
         'CODIGO_COMPRA': 'count',
@@ -76,6 +65,24 @@ def treinar_modelo_avaliacao_fornecedores():
     )
 
     supplier_features = supplier_features.join(avg_price).fillna(0)
+    return supplier_features
+
+
+def treinar_modelo_avaliacao_fornecedores():
+    base_path = DATA_DIR
+    nf_path = base_path / "IACOMPRAS_NOTASFISCAIS_2023_2024.xlsx"
+    items_path = base_path / "IACOMPRAS_NOTAFISCALITENS_2023_2024.xlsx"
+
+    print(f"Carregando dados de treino de: {base_path}")
+    if not nf_path.exists() or not items_path.exists():
+        print("Erro: Arquivos de dados de treino não encontrados em data/samples/")
+        return
+
+    df_nf = pd.read_excel(nf_path)
+    df_items = pd.read_excel(items_path)
+
+    print("Criando features por fornecedor...")
+    supplier_features = engenharia_features_fornecedores(df_nf, df_items)
 
 
     print("Calculando score contínuo...")
@@ -146,8 +153,8 @@ def treinar_modelo_avaliacao_fornecedores():
     current_time = pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
     supplier_features['dt_execucao'] = current_time
     
-    # Salvando CSV para compatibilidade (sobrescreve o último resultado)
-    supplier_features.to_csv(MODEL_DIR / "fornecedores_classificados.csv")
+    # Salvando CSV para compatibilidade foi removido conforme solicitado.
+    # supplier_features.to_csv(MODEL_DIR / "fornecedores_classificados.csv")
     
     # Persistindo no Banco de Dados SQLite
     import sqlite3
