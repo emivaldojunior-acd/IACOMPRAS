@@ -59,6 +59,7 @@ for i, message in enumerate(st.session_state.messages):
                     with st.spinner(f"Executando {agent_tech_name}..."):
                         resultado = orc_side.planejar_compras(f"Chat: {agent_tech_name}", custom_chain=[agent_tech_name])
                         st.session_state['last_run'] = resultado
+                        st.session_state['last_agent'] = agent_tech_name
                         st.session_state.messages.append({
                             "role": "assistant", 
                             "content": f"✅ O `{agent_tech_name}` concluiu o processamento. Você pode ver os resultados abaixo."
@@ -113,6 +114,20 @@ if 'last_run' in st.session_state:
         # Caso o agente tenha retornado um dicionário de status/erro
         if resultado.get('status') == 'error':
             st.error(resultado.get('message', 'Erro desconhecido no agente.'))
+        elif resultado.get('status') == 'interaction_required':
+            st.warning(f"⚠️ {resultado.get('message', 'Interação necessária.')}")
+            options = resultado.get('options', [])
+            cols = st.columns(len(options))
+            for idx, opt in enumerate(options):
+                if cols[idx].button(opt, key=f"opt_{idx}"):
+                    last_agent = st.session_state.get('last_agent')
+                    with st.spinner(f"Processando sua escolha: {opt}..."):
+                        # Executa novamente com a opção escolhida
+                        # Mantém o mesmo agente na cadeia se disponível
+                        chain = [last_agent] if last_agent else None
+                        novo_resultado = orc_side.planejar_compras(opt, custom_chain=chain)
+                        st.session_state['last_run'] = novo_resultado
+                        st.rerun()
         else:
             st.json(resultado)
     elif isinstance(resultado, list) and resultado:
@@ -120,12 +135,45 @@ if 'last_run' in st.session_state:
             df = pd.DataFrame(resultado)
             # Tenta selecionar colunas se existirem
             existing_cols = df.columns.tolist()
-            cols_to_show = [c for c in ['codigo_produto', 'quantidade_sugerida', 'fornecedor_sugerido', 'custo_estimado', 'risco_ruptura', 'flags_auditoria', 'RAZAO_FORNECEDOR', 'classificacao', 'score'] if c in existing_cols]
+            base_cols = [c for c in ['RAZAO_FORNECEDOR', 'classificacao', 'score', 'codigo_produto', 'quantidade_sugerida', 'custo_estimado', 'risco_ruptura', 'flags_auditoria'] if c in existing_cols]
             
-            if not cols_to_show:
-                cols_to_show = existing_cols # Mostra tudo se não achar colunas conhecidas
+            if not base_cols:
+                base_cols = existing_cols 
+
+            # Se for uma listagem de fornecedores, adiciona checkbox para seleção
+            if 'RAZAO_FORNECEDOR' in existing_cols or 'classificacao' in existing_cols:
+                st.write("💡 Selecione os fornecedores desejados na tabela abaixo:")
                 
-            st.dataframe(df[cols_to_show], use_container_width=True)
+                # Prepara o DF com coluna de seleção
+                selection_df = df[base_cols].copy()
+                if 'Selecionar' not in selection_df.columns:
+                    selection_df.insert(0, 'Selecionar', False)
+                
+                # Usa data_editor para permitir edição do checkbox
+                edited_df = st.data_editor(
+                    selection_df, 
+                    hide_index=True, 
+                    use_container_width=True,
+                    column_config={
+                        "Selecionar": st.column_config.CheckboxColumn(
+                            "Selecionar",
+                            help="Marque para escolher este fornecedor",
+                            default=False,
+                        )
+                    },
+                    disabled=[c for c in base_cols] # Apenas o checkbox é editável
+                )
+                
+                # Se houver seleções, mostra botão de ação
+                selected_suppliers = edited_df[edited_df['Selecionar'] == True]
+                if not selected_suppliers.empty:
+                    st.success(f"✅ {len(selected_suppliers)} fornecedor(es) selecionado(s).")
+                    if st.button("🚀 Confirmar Seleção e Prosseguir"):
+                        st.info("Seleção confirmada! (Fluxo de processamento seguinte em desenvolvimento)")
+            else:
+                # Caso comum de outros agentes
+                st.dataframe(df[base_cols], use_container_width=True)
+                
         except Exception as e:
             st.warning(f"Não foi possível exibir os dados em formato de tabela. Exibindo formato bruto.")
             st.write(resultado)

@@ -46,38 +46,101 @@ class AgenteNegociadorFornecedores(Agent):
     def atualizar_inteligencia(self):
         """Treina o classificador de fornecedores para atualizar scores e ratings."""
         print("[*] Agente Negociador atualizando inteligência de fornecedores...")
-        return train_supplier_classifier()
+        train_supplier_classifier() # Executa o treino
+        return self.listar_fornecedores() # Chama a listagem que agora pedirá o filtro
 
-    def listar_fornecedores(self):
-        """Retorna a lista de fornecedores classificados (com auto-treino se necessário)."""
+    def filter_suppliers(self, data, filter_query):
+        """Aplica o filtro de classificação aos dados com suporte a sinônimos."""
+        if not filter_query:
+            return data
+            
+        fq = filter_query.lower()
+        if "todos" in fq or "qualquer" in fq:
+            return data
+            
+        # Mapeamento robusto de sinônimos para as categorias do modelo
+        mapping = {
+            "Ruim / Não recomendado": ["ruim", "ruins", "péssimo", "piores", "não recomendado", "não recomendados", "reprovado"],
+            "Médio": ["médio", "regulares", "aceitável"],
+            "Bom": ["bom", "bons", "legais", "positivo"],
+            "Ótimo / Recomendado": ["ótimo", "ótimos", "excelente", "excelentes", "melhores", "recomendado", "recomendados", "aprovado"]
+        }
+        
+        target = None
+        for category, synonyms in mapping.items():
+            if any(s in fq for s in synonyms):
+                target = category
+                break
+        
+        if not target:
+            return data
+            
+        print(f"[*] Agente Negociador: Filtrando por categoria '{target}'")
+        if isinstance(data, list):
+            return [s for s in data if s.get('classificacao') == target]
+        return data
+
+    def listar_fornecedores(self, query=None):
+        """Retorna a lista de fornecedores classificados (com interatividade inteligente)."""
         print("[*] Agente Negociador recuperando lista de fornecedores classificados...")
         from iacompras.tools.ml_tools import get_classified_suppliers
         
         resultado = get_classified_suppliers()
         
-        # Se o arquivo não existir, treina automaticamente e tenta novamente
+        # Se não houver dados, treina automaticamente
         if isinstance(resultado, dict) and "error" in resultado:
-            print("[!] Arquivo de inteligência não encontrado. Iniciando treinamento automático...")
-            self.atualizar_inteligencia()
+            print("[!] Base de inteligência não encontrada. Iniciando treinamento automático...")
+            train_supplier_classifier()
             resultado = get_classified_suppliers()
-            
-        return resultado
+
+        # Detecção inteligente: verifica se a intenção de filtro já está no prompt
+        query_lower = query.lower() if query else ""
+        
+        # Lista de palavras-chave que indicam interesse em uma categoria específica ou em todos
+        keywords = ["todos", "qualquer", "ruim", "péssimo", "piores", "médio", "regular", "bom", "ótimo", "excelente", "melhores", "recomendado"]
+        
+        # Se o usuário já especificou algo ou pediu "filtrar", processa direto
+        if any(k in query_lower for k in keywords) or "filtrar" in query_lower:
+            return self.filter_suppliers(resultado, query)
+
+        # Caso contrário, solicita interação
+        return {
+            "status": "interaction_required",
+            "message": "Como deseja visualizar a lista de fornecedores?",
+            "options": ["Todos", "Ruim", "Médio", "Bom", "Ótimo"]
+        }
 
     def executar(self, recomendacoes_compras=None, query=None):
         """
-        O Agente Negociador agora atua como especialista em inteligência de fornecedores.
-        Ele pode atualizar a base de conhecimento (treinar) ou listar o ranking atual.
+        O Agente Negociador atua como especialista em inteligência de fornecedores.
+        Suporta fluxo de treinamento -> filtragem ou base atual -> filtragem.
         """
-        # 1. Se o objetivo for treinar/atualizar o modelo
-        if query and any(k in query.lower() for k in ["treinar", "atualizar", "processar"]):
+        query_lower = query.lower() if query else ""
+
+        # 1. Se o objetivo for treinar/atualizar o modelo (Zera o fluxo e começa do treino)
+        if any(k in query_lower for k in ["treinar", "atualizar", "processar"]):
             return self.atualizar_inteligencia()
         
-        # 2. Se houver recomendações de compras (vindo do Planejador ou Orquestrador), realiza o enriquecimento
+        # 2. Se o usuário confirmar que quer usar os dados existentes ou já estiver filtrando
+        if any(k in query_lower for k in ["usar", "atual", "tabela", "base", "manter", "filtrar", "todos", "ruim", "médio", "bom", "ótimo"]):
+            return self.listar_fornecedores(query=query)
+
+        # 3. Verificação de registros existentes no banco para interação inicial (DB vs Retrain)
+        from iacompras.tools.db_tools import db_get_latest_classified_suppliers
+        existing_data = db_get_latest_classified_suppliers()
+        
+        if existing_data and not recomendacoes_compras:
+            return {
+                "status": "interaction_required",
+                "message": "Encontrei registros de fornecedores classificados no banco de dados. "
+                           "Deseja usar os dados da tabela atual ou treinar novamente os modelos?",
+                "options": ["Usar base atual", "Treinar novamente"]
+            }
+
+        # 4. Se houver recomendações de compras (Fluxo de Orquestração Completa)
         if recomendacoes_compras and isinstance(recomendacoes_compras, list):
             print("[*] Agente Negociador: Enriquecendo recomendações com dados de fornecedores...")
             return self.negociar_fornecedores(recomendacoes_compras)
 
-        # 3. Padrão: Fornecer o resultado de todos os fornecedores classificados (Standalone)
-        # Este é o comportamento solicitado: gerar a lista com todos classificados.
-        print("[*] Agente Negociador: Gerando lista de todos os fornecedores classificados.")
-        return self.listar_fornecedores()
+        # 5. Padrão: Retorna a lista (que pedirá filtro se necessário)
+        return self.listar_fornecedores(query=query_lower)

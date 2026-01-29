@@ -141,7 +141,31 @@ def treinar_modelo_avaliacao_fornecedores():
 
     joblib.dump(model, MODEL_DIR / "modelo_classificacao_fornecedores.pkl")
     joblib.dump(scaler, MODEL_DIR / "escalonador_fornecedores.pkl")
+    
+    # Adicionando timestamp de execução
+    current_time = pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
+    supplier_features['dt_execucao'] = current_time
+    
+    # Salvando CSV para compatibilidade (sobrescreve o último resultado)
     supplier_features.to_csv(MODEL_DIR / "fornecedores_classificados.csv")
+    
+    # Persistindo no Banco de Dados SQLite
+    import sqlite3
+    db_path = BASE_DIR / "data" / "iacompras.db"
+    os.makedirs(db_path.parent, exist_ok=True)
+    
+    try:
+        conn = sqlite3.connect(db_path)
+        # Salvando o DataFrame na tabela 'fornecedores_classificados'
+        # Usamos 'append' para manter histórico de todas as execuções
+        # index=True garante que RAZAO_FORNECEDOR (índice do DF) seja salvo como uma coluna
+        supplier_features.to_sql('fornecedores_classificados', conn, if_exists='append', index=True)
+        print(f"Dados salvos com sucesso no banco de dados: {db_path}")
+    except Exception as e:
+        print(f"Erro ao salvar no banco de dados: {e}")
+    finally:
+        if 'conn' in locals():
+            conn.close()
 
     print(f"Modelo salvo em: {MODEL_DIR}")
 
