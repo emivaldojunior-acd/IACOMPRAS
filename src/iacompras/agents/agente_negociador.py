@@ -1,3 +1,4 @@
+import json
 from google.adk.agents import Agent
 from iacompras.tools.external_tools import brasilapi_cnpj_lookup
 from iacompras.tools.data_tools import get_supplier_history
@@ -40,13 +41,23 @@ class AgenteNegociadorFornecedores(Agent):
                 "score": score,
                 "justificativa_fornecedor": f"Fornecedor com score {score}. Localizado em {info_cadastral.get('uf')}."
             })
-            
+        return fornecimentos
+
         return fornecimentos
 
     def atualizar_inteligencia(self):
-        """Treina o classificador de fornecedores para atualizar scores e ratings."""
+        """Treina o classificador de fornecedores e gera a predição para 2025."""
         print("[*] Agente Negociador atualizando inteligência de fornecedores...")
-        train_supplier_classifier() # Executa o treino
+        from iacompras.tools.ml_tools import train_supplier_classifier, classify_suppliers_2025
+        
+        # 1. Treinar com 2023-2024
+        train_result = train_supplier_classifier()
+        print(f"[*] Treinamento: {train_result.get('message')}")
+        
+        # 2. Classificar 2025
+        classif_result = classify_suppliers_2025()
+        print(f"[*] Classificação 2025: {classif_result.get('message')}")
+        
         return self.listar_fornecedores() # Chama a listagem que agora pedirá o filtro
 
     def filter_suppliers(self, data, filter_query):
