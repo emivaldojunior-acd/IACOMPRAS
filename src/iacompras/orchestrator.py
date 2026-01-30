@@ -4,15 +4,13 @@ from iacompras.tools.db_tools import db_init, db_insert_run, DB_PATH
 from iacompras.agents.agente_planejador import AgentePlanejadorCompras
 from iacompras.agents.agente_negociador import AgenteNegociadorFornecedores
 from iacompras.agents.agente_orcamento import AgenteGerenciadorOrcamento
-from iacompras.agents.agente_financeiro import AgenteFinanceiro
-from iacompras.agents.agente_auditor import AgenteAuditor
-from iacompras.agents.agente_logistico import AgenteLogistico
 from iacompras.agents.agente_roteador import AgenteRoteador
+from iacompras.agents.agente_produtos import AgenteProdutos
 from iacompras.tools.gemini_client import gemini_client
 
 class OrquestradorIACompras:
     """
-    Orquestrador ADK (Simulado) que executa o pipeline dos 6 agentes.
+    Orquestrador ADK que executa o pipeline dos 4 agentes principais.
     Utiliza Gemini 2.5-flash para consolidar a inteligência final.
     """
     def __init__(self, api_key=None):
@@ -20,10 +18,8 @@ class OrquestradorIACompras:
         self.planejador = AgentePlanejadorCompras()
         self.negociador = AgenteNegociadorFornecedores()
         self.gerenciador_orcamento = AgenteGerenciadorOrcamento()
-        self.financeiro = AgenteFinanceiro()
-        self.auditor = AgenteAuditor()
-        self.logistico = AgenteLogistico()
         self.roteador = AgenteRoteador()
+        self.agente_produtos = AgenteProdutos()
 
         if api_key:
             gemini_client.configure(api_key)
@@ -33,12 +29,10 @@ class OrquestradorIACompras:
         Retorna as orientações técnicas de cada agente.
         """
         return {
-            "Agente_Planejador": "Previsão de demanda via Machine Learning e sugestão de volumes de compra baseada em tendências históricas.",
-            "Agente_Negociador": "Busca e validação de fornecedores (BrasilAPI), análise de score e histórico de fornecimento.",
-            "Agente_Orcamento": "Gestão de cotações, simulação de custos unitários e comunicação via e-mail com fornecedores.",
-            "Agente_Financeiro": "Cálculo de impacto financeiro total, projeção de fluxo de caixa e viabilidade orçamentária.",
-            "Agente_Auditor": "Detecção de anomalias em preços e quantidades, garantindo conformidade e segurança nas compras.",
-            "Agente_Logistico": "Análise de prazos de entrega, janelas de recebimento e avaliação de risco de ruptura de estoque."
+            "Agente_Negociador": "Especialista em inteligência de fornecedores. Analisa scores de entrega e mantém o ranking de parceiros confiáveis.",
+            "Agente_Produtos": "Gestor de catálogo inteligente. Sugere itens de compra com base no histórico de fornecimento e critérios de recorrência por fornecedor.",
+            "Agente_Planejamento": "Estrategista de atribuição. Identifica os Top 3 melhores fornecedores para cada produto, cruzando preço médio e rating global.",
+            "Agente_Orcamento": "Operacional de compras. Automatiza a geração de orçamentos, simula custos unitários e gerencia a comunicação via e-mail com parceiros."
         }
 
     def get_agents_info(self):
@@ -46,14 +40,11 @@ class OrquestradorIACompras:
         Retorna uma lista estruturada de informações sobre os agentes e seus status.
         """
         descriptions = self.get_agent_descriptions()
-        # Status simulado: 'Ativo' para todos no momento
         return [
-            {"name": "Agente_Planejador", "description": descriptions["Agente_Planejador"], "status": "Ativo"},
             {"name": "Agente_Negociador", "description": descriptions["Agente_Negociador"], "status": "Ativo"},
-            {"name": "Agente_Orcamento", "description": descriptions["Agente_Orcamento"], "status": "Ativo"},
-            {"name": "Agente_Financeiro", "description": descriptions["Agente_Financeiro"], "status": "Ativo"},
-            {"name": "Agente_Auditor", "description": descriptions["Agente_Auditor"], "status": "Ativo"},
-            {"name": "Agente_Logistico", "description": descriptions["Agente_Logistico"], "status": "Ativo"}
+            {"name": "Agente_Produtos", "description": descriptions["Agente_Produtos"], "status": "Ativo"},
+            {"name": "Agente_Planejamento", "description": descriptions["Agente_Planejamento"], "status": "Ativo"},
+            {"name": "Agente_Orcamento", "description": descriptions["Agente_Orcamento"], "status": "Ativo"}
         ]
 
     def get_gemini_agent_options(self):
@@ -62,13 +53,16 @@ class OrquestradorIACompras:
         """
         descricoes = self.get_agent_descriptions()
         prompt = f"""
-        Você é o Orquestrador IACOMPRAS (Gemini 2.5-flash). 
-        Apresente ao usuário os agentes disponíveis no sistema e o que cada um faz, de forma profissional e convidativa.
+        Você é o Orquestrador Sênior do IACOMPRAS (Gemini 2.5-flash). 
+        Um usuário perguntou o que você pode fazer ou como você pode ajudá-lo.
+        
+        Sua missão: Apresentar o sistema de forma amigável, técnica e convidativa.
+        Liste as especialidades dos nossos agentes abaixo e explique que você pode orquestrar o workflow completo de compras (do Negociador ao Orçamento).
         
         Agentes:
         {json.dumps(descricoes, indent=2, ensure_ascii=False)}
         
-        Formate como uma lista clara e técnica. Diga que estou pronto para orquestrar qualquer uma dessas especialidades.
+        Finalize encorajando o usuário a iniciar o workflow completo através do botão na barra lateral ou pedindo algo como "Preciso de novos fornecedores".
         """
         return gemini_client.generate_text(prompt)
 
@@ -87,14 +81,11 @@ class OrquestradorIACompras:
         recomendacoes = []
         fornecimentos = []
         cotacoes = []
-        analise_financeira = {"total_geral": 0.0}
-        auditoria = []
         resultado_final = []
 
         # Define a cadeia a ser executada
         standard_chain = [
-            "Agente_Planejador", "Agente_Negociador", "Agente_Orcamento", 
-            "Agente_Financeiro", "Agente_Auditor", "Agente_Logistico"
+            "Agente_Planejador", "Agente_Negociador", "Agente_Orcamento", "Agente_Produtos"
         ]
         chain_to_run = custom_chain if custom_chain else standard_chain
 
@@ -102,6 +93,11 @@ class OrquestradorIACompras:
         if "Agente_Planejador" in chain_to_run:
             print("[1] Executando Agente Planejador...")
             recomendacoes = self.planejador.executar(query=query)
+        
+        # 1.1 Produtos (Sugestão via Histórico)
+        if "Agente_Produtos" in chain_to_run:
+            print("[1.1] Executando Agente de Produtos...")
+            recomendacoes = self.agente_produtos.executar(query=query)
         
         # 2. Negociação (BrasilAPI)
         if "Agente_Negociador" in chain_to_run:
@@ -113,33 +109,13 @@ class OrquestradorIACompras:
             print("[3] Executando Agente de Orçamento...")
             cotacoes = self.gerenciador_orcamento.executar(run_id, fornecimentos, query=query)
         
-        # 4. Financeiro
-        if "Agente_Financeiro" in chain_to_run:
-            print("[4] Executando Agente Financeiro...")
-            analise_financeira = self.financeiro.executar(cotacoes, query=query)
-        
-        # 5. Auditoria
-        if "Agente_Auditor" in chain_to_run:
-            print("[5] Executando Agente Auditor...")
-            auditoria = self.auditor.executar(analise_financeira if analise_financeira['total_geral'] > 0 else cotacoes, query=query)
-        
-        # 6. Logística
-        if "Agente_Logistico" in chain_to_run:
-            print("[6] Executando Agente Logístico...")
-            resultado_final = self.logistico.executar(auditoria if auditoria else analise_financeira, query=query)
-
-        # Se nenhum agente de saída (Audit/Log) rodou, tenta usar o que tivermos disponível na ordem reversa da cadeia
-        if not resultado_final:
-            if auditoria:
-                resultado_final = auditoria
-            elif isinstance(analise_financeira, dict) and analise_financeira.get('itens'):
-                resultado_final = analise_financeira['itens']
-            elif cotacoes:
-                resultado_final = cotacoes
-            elif fornecimentos:
-                resultado_final = fornecimentos
-            elif recomendacoes:
-                resultado_final = recomendacoes
+        # Determina o resultado final para salvar e consolidar
+        if cotacoes:
+            resultado_final = cotacoes
+        elif fornecimentos:
+            resultado_final = fornecimentos
+        elif recomendacoes:
+            resultado_final = recomendacoes
 
         # Salvar run_items no banco se houver resultados
         if resultado_final:
@@ -155,7 +131,6 @@ class OrquestradorIACompras:
             O processamento para a seguinte solicitação foi concluído: '{query}'
             Cadeia executada: {', '.join(chain_to_run)}
             
-            Total estimado: R$ {analise_financeira.get('total_geral', 0):.2f}
             Itens processados: {len(resultado_final) if isinstance(resultado_final, list) else 1}
             
             Dados: {json.dumps(resultado_final[:3] if isinstance(resultado_final, list) else resultado_final, indent=2)}
@@ -178,15 +153,15 @@ class OrquestradorIACompras:
         return {
             "run_id": run_id,
             "resultado": resultado_final,
-            "total_geral": analise_financeira.get('total_geral', 0),
+            "total_geral": 0.0, # Financeiro removido
             "insight_gemini": insight_gemini
         }
 
-    def rotear_consulta(self, mensagem_usuario):
+    def rotear_consulta(self, mensagem_usuario, current_stage=None):
         """
         Utiliza o Agente Roteador para identificar o próximo passo.
         """
-        return self.roteador.analisar_requisicao(mensagem_usuario)
+        return self.roteador.analisar_requisicao(mensagem_usuario, current_stage=current_stage)
 
     def _save_run_items(self, run_id, items):
         if not isinstance(items, list):
