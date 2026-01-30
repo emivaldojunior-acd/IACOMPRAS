@@ -82,6 +82,28 @@ def db_init():
     )
     ''')
 
+    # Tabela de orçamentos (headers)
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS orcamento (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        razao_fornecedor TEXT,
+        valor_total REAL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    ''')
+
+    # Tabela de itens do orçamento
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS orcamento_itens (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        orcamento_id INTEGER,
+        codigo_produto TEXT,
+        preco_unitario REAL,
+        recorrencia INTEGER,
+        FOREIGN KEY (orcamento_id) REFERENCES orcamento (id)
+    )
+    ''')
+
     conn.commit()
     conn.close()
     return f"Banco de dados inicializado em {DB_PATH}"
@@ -164,3 +186,31 @@ def db_get_latest_classified_suppliers():
     results = [dict(zip(columns, row)) for row in cursor.fetchall()]
     conn.close()
     return results
+
+def db_insert_orcamento(razao_fornecedor, valor_total, itens):
+    """
+    Insere um orçamento e seus itens no banco.
+    itens: lista de dicts [{'codigo_produto', 'preco_unitario', 'recorrencia'}, ...]
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO orcamento (razao_fornecedor, valor_total) VALUES (?, ?)",
+            (razao_fornecedor, valor_total)
+        )
+        orc_id = cursor.lastrowid
+        
+        for item in itens:
+            cursor.execute('''
+                INSERT INTO orcamento_itens (orcamento_id, codigo_produto, preco_unitario, recorrencia)
+                VALUES (?, ?, ?, ?)
+            ''', (orc_id, item['codigo_produto'], item['preco_unitario'], item['recorrencia']))
+        
+        conn.commit()
+        return orc_id
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()

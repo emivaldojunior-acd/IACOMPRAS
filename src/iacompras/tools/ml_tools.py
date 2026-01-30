@@ -7,7 +7,6 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 try:
-    from iacompras.ml.IACOMPRAS_GradientBoostingRegressor import load_dataset, train_and_evaluate
     from iacompras.ml.treinar_classificador_fornecedor import (
         treinar_modelo_avaliacao_fornecedores, 
         engenharia_features_fornecedores,
@@ -20,16 +19,6 @@ except ImportError:
     import importlib.util
     ml_dir = Path(__file__).resolve().parents[1] / "ml"
     
-    # Load GradientBoostingRegressor
-    spec = importlib.util.spec_from_file_location(
-        "model_ml", 
-        str(ml_dir / "IACOMPRAS.GradientBoostingRegressor.py")
-    )
-    model_ml = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(model_ml)
-    load_dataset = model_ml.load_dataset
-    train_and_evaluate = model_ml.train_and_evaluate
-
     # Load treinar_classificador_fornecedor
     spec_supp = importlib.util.spec_from_file_location(
         "supp_ml",
@@ -44,27 +33,6 @@ except ImportError:
     DATA_DIR = supp_ml.DATA_DIR
 
 from iacompras.tools.db_tools import db_get_latest_classified_suppliers
-
-def predict_demand(codigo_produto, reference_month=None):
-    """
-    Chama o modelo já treinado para prever a demanda.
-    Retorna a previsão mensal para 2026.
-    """
-    df = load_dataset()
-    # No projeto atual, o script train_and_evaluate já calcula para todo o DF
-    modelo = train_and_evaluate(df)
-    
-    # Filtra o produto solicitado
-    product_row = df[df['CODIGO_PRODUTO'] == codigo_produto]
-    
-    if product_row.empty:
-        return {"error": f"Produto {codigo_produto} não encontrado no dataset de treino."}
-    
-    return {
-        "codigo_produto": codigo_produto,
-        "previsao_mensal": float(product_row['PREVISAO_2026_MENSAL'].values[0]),
-        "previsao_anual": float(product_row['PREVISAO_2026_ANUAL'].values[0])
-    }
 
 def train_supplier_classifier():
     """
