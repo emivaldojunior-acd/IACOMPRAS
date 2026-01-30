@@ -25,14 +25,11 @@ class AgenteProdutos(Agent):
         df_items = load_nf_items()
         df_headers = load_nf_headers()
 
-        # Sanitização
         df_headers['RAZAO_FORNECEDOR'] = df_headers['RAZAO_FORNECEDOR'].str.strip()
         fornecedores_selecionados = [f.strip() for f in fornecedores_selecionados]
 
-        # Merge para ter RAZAO_FORNECEDOR nos itens
         df = df_items.merge(df_headers[['CODIGO_COMPRA', 'RAZAO_FORNECEDOR']], on='CODIGO_COMPRA', how='left')
         
-        # Filtra apenas pelos fornecedores selecionados
         df_filtered = df[df['RAZAO_FORNECEDOR'].isin(fornecedores_selecionados)]
 
         if df_filtered.empty:
@@ -42,7 +39,7 @@ class AgenteProdutos(Agent):
                 "produtos_sugeridos": []
             }
 
-        # 1. Identifica produtos por número de fornecedores
+        # 1. Identificando produtos por número de fornecedores
         # Pegamos o count de fornecedores DISTINTOS por produto dentro do conjunto selecionado
         prod_forn_count = df_filtered.groupby('CODIGO_PRODUTO')['RAZAO_FORNECEDOR'].nunique()
         auto_include_cods = prod_forn_count[prod_forn_count >= 2].index.tolist()

@@ -36,7 +36,7 @@ def engenharia_features_fornecedores(df_nf, df_items):
     """
     Realiza a engenharia de features para os fornecedores com base nas notas fiscais e itens.
     """
-    supplier_features = df_nf.groupby('RAZAO_FORNECEDOR').agg({
+    supplier_features = df_nf.groupby(['RAZAO_FORNECEDOR', 'CNPJ_FORNECEDOR']).agg({
         'PRAZO_ENTREGA_DIAS': ['mean', 'std'],
         'CODIGO_COMPRA': 'count',
         'TOTAL_NOTAFISCAL': 'sum',
@@ -58,8 +58,8 @@ def engenharia_features_fornecedores(df_nf, df_items):
 
     avg_price = (
         df_items
-        .merge(df_nf[['CODIGO_COMPRA', 'RAZAO_FORNECEDOR']], on='CODIGO_COMPRA')
-        .groupby('RAZAO_FORNECEDOR')['VALOR_UNITARIO']
+        .merge(df_nf[['CODIGO_COMPRA', 'RAZAO_FORNECEDOR', 'CNPJ_FORNECEDOR']], on='CODIGO_COMPRA')
+        .groupby(['RAZAO_FORNECEDOR', 'CNPJ_FORNECEDOR'])['VALOR_UNITARIO']
         .mean()
         .rename('avg_item_price')
     )
@@ -163,10 +163,11 @@ def treinar_modelo_avaliacao_fornecedores():
     
     try:
         conn = sqlite3.connect(db_path)
+        # Resetar o índice para incluir RAZAO_FORNECEDOR e CNPJ_FORNECEDOR como colunas
+        df_to_save = supplier_features.reset_index()
         # Salvando o DataFrame na tabela 'fornecedores_classificados'
-        # Usamos 'append' para manter histórico de todas as execuções
-        # index=True garante que RAZAO_FORNECEDOR (índice do DF) seja salvo como uma coluna
-        supplier_features.to_sql('fornecedores_classificados', conn, if_exists='append', index=True)
+        # Usamos 'replace' para recriar a tabela com a nova estrutura incluindo CNPJ_FORNECEDOR
+        df_to_save.to_sql('fornecedores_classificados', conn, if_exists='replace', index=False)
         print(f"Dados salvos com sucesso no banco de dados: {db_path}")
     except Exception as e:
         print(f"Erro ao salvar no banco de dados: {e}")

@@ -1,7 +1,6 @@
 import json
 from google.adk.agents import Agent
 from iacompras.tools.external_tools import brasilapi_cnpj_lookup
-from iacompras.tools.data_tools import get_supplier_history
 from iacompras.tools.analysis_tools import score_supplier
 from iacompras.tools.ml_tools import train_supplier_classifier
 
@@ -25,12 +24,12 @@ class AgenteNegociadorFornecedores(Agent):
                 "volume_historico": 5000,
                 "uf": "GO"
             }
-            
-            # Enriquecimento via BrasilAPI
+        
             info_cadastral = brasilapi_cnpj_lookup(exemplo_fornecedor['cnpj'])
             
-            # Scoring
             score = score_supplier(exemplo_fornecedor['prazo_medio'], exemplo_fornecedor['volume_historico'])
+            
+            print(info_cadastral.get("razao_social", exemplo_fornecedor['nome']))
             
             fornecimentos.append({
                 **item,
@@ -43,22 +42,18 @@ class AgenteNegociadorFornecedores(Agent):
             })
         return fornecimentos
 
-        return fornecimentos
-
     def atualizar_inteligencia(self):
         """Treina o classificador de fornecedores e gera a predição para 2025."""
         print("[*] Agente Negociador atualizando inteligência de fornecedores...")
         from iacompras.tools.ml_tools import train_supplier_classifier, classify_suppliers_2025
         
-        # 1. Treinar com 2023-2024
         train_result = train_supplier_classifier()
         print(f"[*] Treinamento: {train_result.get('message')}")
         
-        # 2. Classificar 2025
         classif_result = classify_suppliers_2025()
         print(f"[*] Classificação 2025: {classif_result.get('message')}")
         
-        return self.listar_fornecedores() # Chama a listagem que agora pedirá o filtro
+        return self.listar_fornecedores() 
 
     def filter_suppliers(self, data, filter_query):
         """Aplica o filtro de classificação aos dados com suporte a sinônimos."""
@@ -91,6 +86,7 @@ class AgenteNegociadorFornecedores(Agent):
             return [s for s in data if s.get('classificacao') == target]
         return data
 
+
     def listar_fornecedores(self, query=None):
         """Retorna a lista de fornecedores classificados (com interatividade inteligente)."""
         print("[*] Agente Negociador recuperando lista de fornecedores classificados...")
@@ -98,13 +94,13 @@ class AgenteNegociadorFornecedores(Agent):
         
         resultado = get_classified_suppliers()
         
-        # Se não houver dados, treina automaticamente
         if isinstance(resultado, dict) and "error" in resultado:
             print("[!] Base de inteligência não encontrada. Iniciando treinamento automático...")
             train_supplier_classifier()
             resultado = get_classified_suppliers()
+        
 
-        # Detecção inteligente: verifica se a intenção de filtro já está no prompt
+        # verifica se a intenção de filtro já está no prompt
         query_lower = query.lower() if query else ""
         
         # Lista de palavras-chave que indicam interesse em uma categoria específica ou em todos

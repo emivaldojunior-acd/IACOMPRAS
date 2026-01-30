@@ -52,22 +52,18 @@ class AgentePlanejadorCompras(Agent):
         df_items = load_nf_items()
         df_headers = load_nf_headers()
 
-        # Sanitização: Remove espaços extras nos nomes dos fornecedores
         df_headers['RAZAO_FORNECEDOR'] = df_headers['RAZAO_FORNECEDOR'].str.strip()
         fornecedores_selecionados = [f.strip() for f in fornecedores_selecionados]
 
-        # Merge para ter RAZAO_FORNECEDOR nos itens
         df = df_items.merge(df_headers[['CODIGO_COMPRA', 'RAZAO_FORNECEDOR']], on='CODIGO_COMPRA', how='left')
         
-        # Filtra apenas pelos fornecedores selecionados
         df_filtered = df[df['RAZAO_FORNECEDOR'].isin(fornecedores_selecionados)]
 
-        # 1. Encontrar produtos comprados em TODOS os fornecedores selecionados
         prod_forn_count = df_filtered.groupby('CODIGO_PRODUTO')['RAZAO_FORNECEDOR'].nunique()
         total_forn_selecionados = len(fornecedores_selecionados)
         produtos_em_todos = prod_forn_count[prod_forn_count == total_forn_selecionados].index.tolist()
 
-        # 2. Encontrar produtos comprados mais de uma vez por fornecedor
+
         prod_frequencia = df_filtered.groupby(['RAZAO_FORNECEDOR', 'CODIGO_PRODUTO']).size().reset_index(name='count')
         produtos_frequentes = prod_frequencia[prod_frequencia['count'] > 1]['CODIGO_PRODUTO'].unique().tolist()
 
@@ -109,7 +105,6 @@ class AgentePlanejadorCompras(Agent):
                 "justificativa": " | ".join(motivos)
             })
             
-        # Retorna o dicionário estruturado para as duas grids
         return {
             "type": "dual_grid_selection",
             "fornecedores_selecionados": [{"RAZAO_FORNECEDOR": f} for f in fornecedores_selecionados],
@@ -121,7 +116,6 @@ class AgentePlanejadorCompras(Agent):
         fq = (filter_query or "").lower()
         
         if "desejados" in fq or "selecionar" in fq:
-            # Opção para seleção manual (Simulado por um filtro de score alto por enquanto)
             print("[*] Agente Planejador: Modo de seleção de fornecedores desejados.")
             return [s for s in data if s.get('rating', 0) >= 4]
 
@@ -153,41 +147,33 @@ class AgentePlanejadorCompras(Agent):
         df_headers = load_nf_headers()
         suppliers_classified = get_classified_suppliers()
         
-        # Converte lista de classified para DF para merge fácil
         if isinstance(suppliers_classified, dict) and "error" in suppliers_classified:
-            # Fallback se não houver classificados
             df_class = pd.DataFrame(columns=['RAZAO_FORNECEDOR', 'rating', 'classificacao'])
         else:
             df_class = pd.DataFrame(suppliers_classified)
 
-        # Merge headers e items para ter fornecedor e preço/produto
         df_full = df_items.merge(df_headers[['CODIGO_COMPRA', 'RAZAO_FORNECEDOR']], on='CODIGO_COMPRA', how='left')
         
         resultados = []
         for prod_cod in produtos_selecionados:
-            # Filtra histórico deste produto
             df_prod = df_full[df_full['CODIGO_PRODUTO'] == prod_cod].copy()
             if df_prod.empty:
                 continue
 
-            # Agrupa por fornecedor para pegar métricas locais
             local_metrics = df_prod.groupby('RAZAO_FORNECEDOR').agg({
                 'VALOR_UNITARIO': 'mean',
-                'CODIGO_PRODUTO': 'count' # Recorrência local
+                'CODIGO_PRODUTO': 'count' 
             }).rename(columns={'VALOR_UNITARIO': 'preco_medio', 'CODIGO_PRODUTO': 'recurrencia_local'}).reset_index()
 
-            # Merge com classificações globais
-            recommendations = local_metrics.merge(df_class[['RAZAO_FORNECEDOR', 'rating', 'classificacao']], on='RAZAO_FORNECEDOR', how='left')
+            recommendations = local_metrics.merge(df_class[['RAZAO_FORNECEDOR', 'CNPJ_FORNECEDOR', 'rating', 'classificacao']], on='RAZAO_FORNECEDOR', how='left')
             recommendations['rating'] = recommendations['rating'].fillna(1) # Neutro se não classificado
             recommendations['classificacao'] = recommendations['classificacao'].fillna('N/A')
 
-            # Ranking: Rating desc, Preço asc, Recorrência desc
             top_3 = recommendations.sort_values(
                 by=['rating', 'preco_medio', 'recurrencia_local'], 
                 ascending=[False, True, False]
             ).head(3)
 
-            # Pega descrição do produto
             desc = df_prod['PRODUTO'].iloc[-1]
 
             resultados.append({
@@ -259,11 +245,9 @@ class AgentePlanejadorCompras(Agent):
                 "options": ["Usar base atual", "Treinar novamente"]
             }
 
-        # Se escolheu treinar, executa e continua o fluxo
         if "treinar novamente" in query_lower:
             print("[*] Planejador: Iniciando treinamento...")
             train_supplier_classifier()
-            # Reiniciamos a query para cair na próxima etapa (Filtros)
             query_lower = "usar base" 
 
         # Etapa 4.2: Escolha do Filtro

@@ -6,6 +6,7 @@ from iacompras.agents.agente_negociador import AgenteNegociadorFornecedores
 from iacompras.agents.agente_orcamento import AgenteGerenciadorOrcamento
 from iacompras.agents.agente_roteador import AgenteRoteador
 from iacompras.agents.agente_produtos import AgenteProdutos
+from iacompras.agents.agente_solicita_cotacao_email import AgenteSolicitaCotacao
 from iacompras.tools.gemini_client import gemini_client
 
 class OrquestradorIACompras:
@@ -20,6 +21,7 @@ class OrquestradorIACompras:
         self.gerenciador_orcamento = AgenteGerenciadorOrcamento()
         self.roteador = AgenteRoteador()
         self.agente_produtos = AgenteProdutos()
+        self.agente_solicita_cotacao_email = AgenteSolicitaCotacao()
 
         if api_key:
             gemini_client.configure(api_key)
@@ -74,16 +76,13 @@ class OrquestradorIACompras:
         """
         print(f"[*] Iniciando orquestração para: {query}")
         
-        # 0. Registrar Run no SQLite
         run_id = db_insert_run(query, status="processing")
         
-        # Estado inicial (vazio ou carregado de dados prévios se necessário)
         recomendacoes = []
         fornecimentos = []
         cotacoes = []
         resultado_final = []
 
-        # Define a cadeia a ser executada
         standard_chain = [
             "Agente_Planejador", "Agente_Negociador", "Agente_Orcamento", "Agente_Produtos"
         ]
@@ -109,7 +108,6 @@ class OrquestradorIACompras:
             print("[3] Executando Agente de Orçamento...")
             cotacoes = self.gerenciador_orcamento.executar(run_id, fornecimentos, query=query)
         
-        # Determina o resultado final para salvar e consolidar
         if cotacoes:
             resultado_final = cotacoes
         elif fornecimentos:
@@ -117,7 +115,6 @@ class OrquestradorIACompras:
         elif recomendacoes:
             resultado_final = recomendacoes
 
-        # Salvar run_items no banco se houver resultados
         if resultado_final:
             self._save_run_items(run_id, resultado_final)
         
@@ -139,12 +136,10 @@ class OrquestradorIACompras:
             """
             try:
                 insight_gemini = gemini_client.generate_text(resumo_prompt)
-                # Se o gemini_client retornar uma string de erro (que agora são amigáveis), o orchestrator apenas aceita.
             except Exception as e:
                 print(f"[!] Erro fatal no orquestrador ao chamar Gemini: {e}")
                 insight_gemini = "⚠️ Erro inesperado ao gerar insight."
         
-        # Finalizar Run
         conn = sqlite3.connect(DB_PATH)
         conn.execute("UPDATE runs SET status='completed' WHERE id=?", (run_id,))
         conn.commit()
@@ -153,7 +148,7 @@ class OrquestradorIACompras:
         return {
             "run_id": run_id,
             "resultado": resultado_final,
-            "total_geral": 0.0, # Financeiro removido
+            "total_geral": 0.0, 
             "insight_gemini": insight_gemini
         }
 
@@ -171,8 +166,6 @@ class OrquestradorIACompras:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         for item in items:
-            # Verifica se o item é um dicionário e se contém chaves de produto
-            # Isso evita erros quando o resultado é uma lista de strings ou lista de fornecedores sem dados de produto
             if not isinstance(item, dict) or 'codigo_produto' not in item:
                 continue
 

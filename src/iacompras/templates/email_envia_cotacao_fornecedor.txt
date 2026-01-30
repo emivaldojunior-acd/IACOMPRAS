@@ -1,0 +1,26 @@
+Prezado(a) {nome_fornecedor},
+
+Solicitamos a gentileza de nos enviar uma cotação para os itens abaixo relacionados:
+
+SOLICITAÇÃO DE COTAÇÃO - IA COMPRAS
+
+FORNECEDOR: {nome_fornecedor}
+CNPJ: {cnpj_fornecedor}
+DATA DA SOLICITAÇÃO: {data_solicitacao}
+
+ITENS DO ORÇAMENTO:
+
+{lista_itens}
+
+VALOR TOTAL ESTIMADO: R$ {valor_total}
+
+Solicitamos que a cotação seja enviada em até 5 dias úteis para este mesmo 
+endereço de e-mail.
+
+Caso haja dúvidas ou necessidade de esclarecimentos, favor entrar em contato.
+
+Este orçamento foi gerado automaticamente pelo sistema IA Compras.
+
+Atenciosamente,
+Sistema IA Compras
+Departamento de Suprimentos
