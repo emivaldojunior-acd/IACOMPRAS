@@ -1,0 +1,25 @@
+Prezado(a) Cliente,
+
+Recebemos sua solicitação de cotação e agradecemos o interesse em nossos produtos/serviços.
+
+CONFIRMAÇÃO DE RECEBIMENTO - PEDIDO DE COMPRA
+
+FORNECEDOR: {nome_fornecedor}
+CNPJ: {cnpj_fornecedor}
+DATA DE RECEBIMENTO: {data_recebimento}
+
+ITENS SOLICITADOS:
+
+{lista_itens}
+
+VALOR TOTAL ESTIMADO: R$ {valor_total}
+
+Informamos que sua solicitação foi recebida com sucesso e está sendo processada.
+Retornaremos em breve com a cotação formal contendo preços, prazos e condições.
+
+Este email foi gerado automaticamente pelo sistema IA Compras em resposta
+à sua solicitação de cotação.
+
+Atenciosamente,
+{nome_fornecedor}
+Departamento Comercial

@@ -1,6 +1,5 @@
 import requests
 import sqlite3
-import os
 from iacompras.tools.db_tools import db_upsert_supplier, DB_PATH
 
 def brasilapi_cnpj_lookup(cnpj):
@@ -8,8 +7,11 @@ def brasilapi_cnpj_lookup(cnpj):
     Consulta BrasilAPI para obter dados do fornecedor via CNPJ.
     Cacheia o resultado no SQLite.
     """
-    # Limpa o CNPJ (deixa apenas números)
+    print(f"Consultando BrasilAPI para CNPJ: {cnpj}")
+
+    # Limpa o CNPJ (deixa apenas números) e garante 14 dígitos com zeros à esquerda
     cnpj_clean = "".join(filter(str.isdigit, str(cnpj)))
+    cnpj_clean = cnpj_clean.zfill(14)  # Padding para 14 dígitos
     
     # 1. Tentar buscar no Cache (SQLite)
     conn = sqlite3.connect(DB_PATH)
@@ -43,24 +45,3 @@ def brasilapi_cnpj_lookup(cnpj):
     except Exception as e:
         return {"error": f"Falha na consulta BrasilAPI: {str(e)}"}
 
-def sendgrid_send_email_dry_run(to_email, subject, body, run_id=None):
-    """
-    Simula envio de e-mail via SendGrid. 
-    Grava no banco SQLite com dry_run=1.
-    """
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-    INSERT INTO emails_outbox (run_id, to_email, subject, body, provider, status, dry_run)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-    ''', (run_id, to_email, subject, body, "SendGrid", "queued", 1))
-    
-    conn.commit()
-    conn.close()
-    
-    return {
-        "status": "simulated",
-        "message": f"E-mail para {to_email} enfileirado no modo Dry-Run.",
-        "instructions": "Para envio real, mude DRY_RUN_SENDGRID=false e configure SENDGRID_API_KEY."
-    }

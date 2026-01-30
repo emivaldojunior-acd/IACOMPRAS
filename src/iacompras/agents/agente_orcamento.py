@@ -1,6 +1,5 @@
 from google.adk.agents import Agent
-from iacompras.tools.db_tools import db_insert_cotacao, db_insert_orcamento
-from iacompras.tools.external_tools import sendgrid_send_email_dry_run
+from iacompras.tools.db_tools import db_insert_orcamento, db_list_orcamentos
 
 class AgenteGerenciadorOrcamento(Agent):
     """
@@ -13,7 +12,7 @@ class AgenteGerenciadorOrcamento(Agent):
     def preparar_resumo(self, selecoes: dict) -> dict:
         """
         Agrupa os produtos por fornecedor e gera um resumo para o usuário.
-        selecoes: {codigo_produto: [{Fornecedor: str, Preço Médio: float, ...}, ...]}
+        selecoes: {codigo_produto: [{Fornecedor: str, Preço Médio: float, CNPJ_FORNECEDOR: str, ...}, ...]}
         """
         import pandas as pd
         if not selecoes:
@@ -22,7 +21,6 @@ class AgenteGerenciadorOrcamento(Agent):
         # Agrupar itens por Fornecedor (Suporta múltiplos fornecedores por produto)
         orcamentos_por_fornecedor = {}
         for p_code, list_details in selecoes.items():
-            # Garante que seja lista para iterar
             if not isinstance(list_details, list):
                 list_details = [list_details]
 
@@ -31,19 +29,24 @@ class AgenteGerenciadorOrcamento(Agent):
                 if not forn: continue
                 
                 if forn not in orcamentos_por_fornecedor:
-                    orcamentos_por_fornecedor[forn] = []
+                    orcamentos_por_fornecedor[forn] = {
+                        'cnpj': details.get('CNPJ_FORNECEDOR'),
+                        'itens': []
+                    }
                 
-                orcamentos_por_fornecedor[forn].append({
+                orcamentos_por_fornecedor[forn]['itens'].append({
                     "codigo_produto": p_code,
                     "preco_base": details.get('Preço Médio', 0),
                     "recorrencia": details.get('Recorrência', 0)
                 })
 
         resumo_final = []
-        for forn, itens in orcamentos_por_fornecedor.items():
+        for forn, dados in orcamentos_por_fornecedor.items():
+            itens = dados['itens']
             valor_total_estimado = sum(i['preco_base'] for i in itens)
             resumo_final.append({
                 "fornecedor": forn,
+                "cnpj_fornecedor": dados['cnpj'],
                 "total_itens": len(itens),
                 "valor_total_estimado": valor_total_estimado,
                 "itens": itens
@@ -71,30 +74,38 @@ class AgenteGerenciadorOrcamento(Agent):
             orc_id = db_insert_orcamento(
                 razao_fornecedor=orc['fornecedor'],
                 valor_total=orc['valor_total_estimado'],
-                itens=itens_db
+                itens=itens_db,
+                cnpj_fornecedor=orc.get('cnpj_fornecedor')
             )
             ids_gerados.append(orc_id)
             
         return {
             "status": "success",
+            "type": "budget_confirmation_result",
             "message": f"{len(ids_gerados)} orçamentos gravados com sucesso no banco de dados.",
-            "orcamento_ids": ids_gerados
+            "orcamento_ids": ids_gerados,
+            "orcamentos_cadastrados": db_list_orcamentos(ids_gerados)
         }
 
     def executar(self, run_id=0, fornecimentos=None, query=None):
         query_lower = (query or "").lower()
         
-        # 1. Fluxo de Resumo (Novo)
         if "gerar_resumo_orcamentos:" in query_lower:
-            import ast
+            import json
             try:
                 parts = query.split("gerar_resumo_orcamentos:")
-                selecoes = ast.literal_eval(parts[1].strip())
+                selecoes = json.loads(parts[1].strip())
                 return self.preparar_resumo(selecoes)
+            except json.JSONDecodeError:
+                import ast
+                try:
+                    selecoes = ast.literal_eval(parts[1].strip())
+                    return self.preparar_resumo(selecoes)
+                except Exception as e:
+                    return {"status": "error", "message": f"Erro ao gerar resumo de orçamentos: {e}"}
             except Exception as e:
                 return {"status": "error", "message": f"Erro ao gerar resumo de orçamentos: {e}"}
 
-        # 2. Fluxo de Confirmação Final (Gravação no BD)
         if "confirmar_orcamentos:" in query_lower:
             import ast
             try:
@@ -104,8 +115,8 @@ class AgenteGerenciadorOrcamento(Agent):
             except Exception as e:
                 return {"status": "error", "message": f"Erro ao confirmar orçamentos no BD: {e}"}
 
-        # 3. Fluxo Legado/Direto (antigo)
         if not fornecimentos:
             return {"status": "error", "message": "Nenhum fornecedor selecionado ou comando de resumo ausente."}
             
-        return self.gerenciar_orcamento(run_id, fornecimentos)
+        return {"status": "error", "message": "Fluxo não reconhecido. Use 'gerar_resumo_orcamentos:' ou 'confirmar_orcamentos:'."}
+
