@@ -5,16 +5,14 @@ import sys
 import json
 from pathlib import Path
 
-# Adiciona o diretório 'src' ao sys.path para que o pacote 'iacompras' seja encontrado
-current_dir = Path(__file__).resolve().parent # iacompras
-src_dir = current_dir.parent # src
+current_dir = Path(__file__).resolve().parent 
+src_dir = current_dir.parent 
 if str(src_dir) not in sys.path:
     sys.path.append(str(src_dir))
 
 from iacompras.orchestrator import OrquestradorIACompras
 from iacompras.tools.db_tools import db_init
 
-# Inicializa o banco de dados na primeira carga
 db_init()
 
 st.set_page_config(page_title="IACOMPRAS - Camada Agêntica ADK", layout="wide")
@@ -35,10 +33,10 @@ def render_workflow_progress():
     ]
     
     stage_order = {s["id"]: i for i, s in enumerate(workflow_stages)}
-    current_stage = st.session_state.get("current_stage", None)  # None = nenhum iniciado
-    current_idx = stage_order.get(current_stage, -1)  # -1 = pré-início
+    current_stage = st.session_state.get("current_stage", None) 
+    current_idx = stage_order.get(current_stage, -1) 
     workflow_completed = st.session_state.get("workflow_completed", False)
-    stage_errors = st.session_state.get("stage_errors", {})  # Ex: {"negociador": True}
+    stage_errors = st.session_state.get("stage_errors", {}) 
     
     st.markdown("""
     <style>
@@ -70,22 +68,18 @@ def render_workflow_progress():
         has_error = stage_errors.get(stage_id, False)
         
         if has_error:
-            # Vermelho com X - erro
             color = "#ef4444"
             icon = "✗"
             animation_class = ""
         elif workflow_completed or i < current_idx:
-            # Verde com checkmark - completo
             color = "#22c55e"
             icon = "✓"
             animation_class = ""
         elif i == current_idx and current_idx >= 0:
-            # Amarelo pulsando - em progresso
             color = "#f59e0b"
             icon = ""
             animation_class = "dot-active"
         else:
-            # Cinza - pendente (não iniciado)
             color = "#6b7280"
             icon = ""
             animation_class = ""
@@ -110,22 +104,19 @@ with st.sidebar:
     st.header("⚙️ Configurações")
     gemini_api_key = st.text_input("Gemini API Key", type="password", help="Insira sua chave do Google Gemini")
     
-    # Inicializa Orquestrador aqui para que esteja disponível para o botão abaixo
     orc_side = OrquestradorIACompras(api_key=gemini_api_key or os.getenv("GEMINI_API_KEY"))
 
     st.divider()
     if st.button("🚀 Iniciar Workflow de Compras", use_container_width=True):
-        # Limpa estados para recomeçar do zero
         for key in ['last_run', 'active_supplier', 'budget_selections', 'item_selections_map', 'selected_products_final', 'active_product', 'final_decisions', 'messages', 'workflow_completed', 'df_produtos_sugeridos', '_produtos_source', 'stage_errors']:
             if key in st.session_state:
                 del st.session_state[key]
         
-        st.session_state.current_stage = "negociador"  # Agora inicia o primeiro estágio
+        st.session_state.current_stage = "negociador" 
         st.session_state.workflow_completed = False
         st.session_state.stage_errors = {}
         st.session_state.messages = []
         
-        # Dispara o primeiro agente (Negociador) automaticamente
         with st.spinner("Iniciando fluxo de compras..."):
             agent_tech_name = "Agente_Negociador"
             st.session_state['last_agent'] = agent_tech_name
@@ -136,7 +127,7 @@ with st.sidebar:
     st.divider()
     st.info("Utilize o chat ao lado para solicitar ações aos agentes especializados.")
 
-# --- Seção do Chatbot ---
+
 st.divider()
 st.subheader("💬 Chatbot Assistente")
 
@@ -146,7 +137,6 @@ if "messages" not in st.session_state:
 if "current_stage" not in st.session_state:
     st.session_state.current_stage = None  
 
-# Exibe mensagens do histórico
 for i, message in enumerate(st.session_state.messages):
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
@@ -230,14 +220,13 @@ if st.session_state.get('last_run'):
                         st.session_state['last_run'] = novo_resultado
                         st.rerun()
         elif resultado.get('type') == 'product_suggestion_grid':
-            # Grid de Produtos Sugeridos ---
+            # grid de Produtos Sugeridos
             if 'selected_products_final' not in st.session_state:
                 st.session_state.selected_products_final = {}
 
             st.write("### 💡 Catálogo de Produtos Sugeridos")
             st.info("Selecione os produtos que deseja incluir no planejamento de orçamento.")
             
-            # Cria o DataFrame base apenas uma vez e armazena em session_state
             if 'df_produtos_sugeridos' not in st.session_state or st.session_state.get('_produtos_source') != id(resultado['produtos_sugeridos']):
                 df_prod = pd.DataFrame(resultado['produtos_sugeridos'])
                 if not df_prod.empty and 'Confirmar' not in df_prod.columns:
@@ -250,7 +239,6 @@ if st.session_state.get('last_run'):
             if df_prod.empty:
                 st.warning("Nenhum produto sugerido encontrado para os fornecedores selecionados.")
             else:
-                # Renderiza grid única - o state é gerenciado pelo próprio data_editor via key
                 edited_df = st.data_editor(
                     df_prod,
                     hide_index=True,
@@ -273,13 +261,11 @@ if st.session_state.get('last_run'):
                     key="product_final_grid"
                 )
 
-                # Atualiza o DataFrame em session_state com as edições
                 st.session_state.df_produtos_sugeridos = edited_df
                 
-                # Sincroniza as seleções com o dicionário para uso posterior
                 st.session_state.selected_products_final = dict(zip(edited_df['codigo_produto'], edited_df['Confirmar']))
 
-                # Botão de ação
+                # botão de ação
                 total_sel = sum(1 for v in st.session_state.selected_products_final.values() if v)
                 if total_sel > 0:
                     st.success(f"✅ {total_sel} produto(s) selecionado(s).")
@@ -307,8 +293,6 @@ if st.session_state.get('last_run'):
             data_final = resultado['selecao_final']
             df_master = pd.DataFrame([{"Código": p['codigo_produto'], "Descrição": p['descricao']} for p in data_final])
             
-            # Adiciona indicador de conclusão na grid mestre
-            # Consideramos 'Selecionado' apenas se houver pelo menos 1 fornecedor na lista
             effective_decisions = {k: v for k, v in st.session_state.final_decisions.items() if v}
             df_master['Status'] = df_master['Código'].apply(lambda x: "✅ Selecionado" if x in effective_decisions else "⏳ Pendente")
 
@@ -351,11 +335,9 @@ if st.session_state.get('last_run'):
                     'recurrencia_local': 'Recorrência'
                 })
 
-                # coluna de rádio/seleção simulada no data_editor
                 if 'Escolher' not in df_detail.columns:
                     df_detail.insert(0, 'Escolher', False)
                 
-                # sincroniza escolha anterior (suporta múltiplas)
                 current_choices = st.session_state.final_decisions.get(active_p, [])
                 chosen_names = [c.get('Fornecedor') for c in current_choices]
                 df_detail['Escolher'] = df_detail['Fornecedor'].isin(chosen_names)
@@ -378,12 +360,10 @@ if st.session_state.get('last_run'):
                 # remove a coluna 'Escolher' interna dos dicts para limpar o dado enviado ao agente
                 for d in new_sel_list: d.pop('Escolher', None)
                 
-                # compara para evitar reruns infinitos se nada mudou
                 if new_sel_list != current_choices:
                     st.session_state.final_decisions[active_p] = new_sel_list
                     st.rerun()
             
-            # finalização
             total_prods = len(df_master)
             total_done = len(effective_decisions)
             
@@ -392,7 +372,6 @@ if st.session_state.get('last_run'):
                 st.success("✅ Todos os produtos possuem um fornecedor definido!")
                 if st.button("🏁 Gerar Resumo de Orçamentos"):
                     import json
-                    # converte para JSON para garantir parsing correto no agente
                     query_orc = f"gerar_resumo_orcamentos: {json.dumps(effective_decisions, default=str)}"
                     with st.spinner("Agrupando produtos e gerando orçamentos por fornecedor..."):
                         agent_tech_name = "Agente_Orcamento"
@@ -405,7 +384,6 @@ if st.session_state.get('last_run'):
             else:
                 st.warning(f"Faltam {total_prods - total_done} produtos para selecionar o fornecedor.")
         elif resultado.get('type') == 'budget_summary_view':
-            # visualização de resumo de orçamentos
             st.write("### 📝 Resumo dos Orçamentos Gerados")
             st.info("Confira os itens agrupados por fornecedor antes de confirmar o envio.")
             
@@ -444,20 +422,16 @@ if st.session_state.get('last_run'):
                     st.session_state['last_run'] = None
                     st.rerun()
         elif isinstance(resultado, dict) and resultado.get('status') == 'success':
-            # tela final de sucesso
             st.balloons()
             st.success(f"🎊 {resultado.get('message')}")
             
-            # exibe a lista de orçamentos cadastrados com todos os campos
             if resultado.get('orcamentos_cadastrados'):
                 st.write("### 📋 Orçamentos Cadastrados")
                 df_orcamentos = pd.DataFrame(resultado['orcamentos_cadastrados'])
                 
-                # remove coluna email_fornecedor se existir (compatibilidade com banco antigo)
                 if 'email_fornecedor' in df_orcamentos.columns:
                     df_orcamentos = df_orcamentos.drop(columns=['email_fornecedor'])
                 
-                # renomeia colunas para exibição amigável
                 column_names = {
                     'id': 'ID',
                     'razao_fornecedor': 'Fornecedor',
@@ -480,12 +454,10 @@ if st.session_state.get('last_run'):
             elif 'orcamento_ids' in resultado:
                 st.write(f"Os seguintes IDs de orçamento foram gerados: `{resultado['orcamento_ids']}`")
             
-            # botões de ação pós-confirmação
             col1, col2 = st.columns(2)
             
             with col1:
                 if st.button("📧 Enviar Cotações por Email"):
-                    # prepara os orçamentos para envio
                     orcamentos_para_envio = resultado.get('orcamentos_cadastrados', [])
                     if not orcamentos_para_envio and 'orcamento_ids' in resultado:
                         from iacompras.tools.db_tools import db_list_orcamentos
@@ -493,12 +465,11 @@ if st.session_state.get('last_run'):
                     
                     if orcamentos_para_envio:
                         with st.spinner("Enviando cotações para fornecedores..."):
-                            st.session_state.current_stage = "emails"  # Atualiza stage
+                            st.session_state.current_stage = "emails"  
                             from iacompras.agents.agente_solicita_cotacao_email import AgenteSolicitaCotacao
                             agente_cotacao = AgenteSolicitaCotacao()
-                            resultado_envio = agente_cotacao.enviar_cotacoes_em_lote(orcamentos_para_envio)
+                            resultado_envio = agente_cotacao.executar(orcamentos=orcamentos_para_envio)
                             
-                            # marca workflow como completo se envio foi bem-sucedido
                             if resultado_envio.get('status') in ['success', 'partial']:
                                 st.session_state.workflow_completed = True
                             
@@ -508,14 +479,12 @@ if st.session_state.get('last_run'):
                         st.error("Nenhum orçamento encontrado para enviar cotações.")
             
             with col2:
-                if st.button("🔄 Iniciar Novo Planejamento"):
-                    # limpa estados para recomeçar
+                if st.button("🔄 Iniciar Novo Planejamento"):                    
                     for key in ['last_run', 'active_supplier', 'budget_selections', 'item_selections_map', 'selected_products_final', 'active_product', 'final_decisions', 'current_stage', 'workflow_completed', 'df_produtos_sugeridos', '_produtos_source', 'stage_errors']:
                         if key in st.session_state:
                             del st.session_state[key]
                     st.rerun()
         elif resultado.get('type') == 'quotation_send_result':
-            # resultado do envio de cotações
             status = resultado.get('status', 'error')
             
             if status == 'success':
@@ -526,7 +495,6 @@ if st.session_state.get('last_run'):
             else:
                 st.error(f"❌ {resultado.get('message')}")
             
-            # exibe detalhes de cada envio de cotação (Cliente -> Fornecedor)
             detalhes = resultado.get('detalhes', [])
             if detalhes:
                 st.write("### 📤 Cotações Enviadas (Cliente → Fornecedor)")
@@ -534,7 +502,6 @@ if st.session_state.get('last_run'):
                     icon = "✅" if det.get('success') else "❌"
                     st.write(f"{icon} **{det.get('fornecedor')}** - {det.get('message')}")
             
-            # exibe detalhes das confirmações do fornecedor (Fornecedor -> Cliente)
             confirmacoes = resultado.get('confirmacoes_fornecedor')
             if confirmacoes:
                 st.divider()
@@ -572,12 +539,10 @@ if st.session_state.get('last_run'):
             if 'RAZAO_FORNECEDOR' in existing_cols or 'classificacao' in existing_cols:
                 st.write("💡 Selecione os fornecedores desejados na tabela abaixo:")
                 
-                # prepara o DF com coluna de seleção
                 selection_df = df[base_cols].copy()
                 if 'Selecionar' not in selection_df.columns:
                     selection_df.insert(0, 'Selecionar', False)
                 
-                # usa data_editor para permitir edição do checkbox
                 edited_df = st.data_editor(
                     selection_df, 
                     hide_index=True, 
@@ -609,16 +574,13 @@ if st.session_state.get('last_run'):
                             st.session_state['last_run'] = novo_resultado
                             st.rerun()
             
-            # caso o resultado seja sugestão de produtos
             elif 'codigo_produto' in existing_cols and 'justificativa' in existing_cols:
                 st.write("💡 Produtos sugeridos para os fornecedores selecionados:")
-                
-                # prepara o DF com coluna de seleção
+                            
                 selection_df = df[base_cols].copy()
                 if 'Confirmar' not in selection_df.columns:
                     selection_df.insert(0, 'Confirmar', False)
                 
-                # usa data_editor para seleção de produtos
                 edited_prod_df = st.data_editor(
                     selection_df,
                     hide_index=True,
@@ -639,7 +601,6 @@ if st.session_state.get('last_run'):
                     if st.button("💰 Planejar Orçamento"):
                         st.info("Iniciando planejamento de orçamento... (Fluxo seguinte em desenvolvimento)")
             else:
-                # caso comum de outros agentes
                 st.dataframe(df[base_cols], width="stretch")
                 
         except Exception as e:
